@@ -136,6 +136,7 @@ router.get("/active", async (req, res) => {
   try {
     const now = new Date();
 
+    // First: look for a currently active timed quiz
     const manual = await Quiz.findOne({
       status: "published",
       startTime: { $lte: now },
@@ -144,80 +145,45 @@ router.get("/active", async (req, res) => {
 
     if (manual) return res.json(manual);
 
-    const day = now.getDay();
-    if (day === 6) {
-      const latestPublished = await Quiz.findOne({ status: "published" }).sort({ createdAt: -1 });
-      if (latestPublished) return res.json({ ...latestPublished._doc, auto: true });
+    // If no timed quiz, fallback to the latest published quiz
+    const latestPublished = await Quiz.findOne({
+      status: "published",
+    }).sort({ createdAt: -1 });
+
+    if (latestPublished) {
+      // Add a marker to know it was auto-fetched
+      return res.json({ ...latestPublished._doc, auto: true });
     }
 
-    res.status(404).json({ message: "No active quiz" });
+    res.status(404).json({ message: "No active quiz right now" });
   } catch (err) {
     console.error("Active quiz error:", err);
     res.status(500).json({ message: "Server error fetching active quiz" });
   }
 });
 
+
 /**
  * Submit answers
  */
-router.post("/submit/:id", authMiddleware, async (req, res) => {
+router.put("/publish/:id", adminMiddleware, async (req, res) => {
   try {
-    const { answers } = req.body;
-    if (!Array.isArray(answers))
-      return res.status(400).json({ message: "Answers array required" });
-
+    const { startTime, endTime } = req.body;
     const quiz = await Quiz.findById(req.params.id);
     if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
-    const now = new Date();
-    const isManual =
-      quiz.startTime && quiz.endTime && now >= quiz.startTime && now <= quiz.endTime;
-    const isSaturday = now.getDay() === 6;
+    quiz.status = "published";
+    quiz.startTime = startTime ? new Date(startTime) : new Date();
+    quiz.endTime = endTime ? new Date(endTime) : new Date(Date.now() + 60 * 60 * 1000);
+    await quiz.save();
 
-    if (!isManual && !isSaturday)
-      return res.status(400).json({ message: "Quiz not active" });
-
-    if (!quiz.participants.includes(req.user._id))
-      return res.status(403).json({ message: "You must register first" });
-
-    const already = await QuizAttempt.findOne({ quiz: quiz._id, user: req.user._id });
-    if (already) return res.status(400).json({ message: "Already attempted" });
-
-    let score = 0;
-    let earnedCoins = 0;
-    quiz.questions.forEach((q, i) => {
-      const idx = answers[i];
-      if (typeof idx === "number" && q.options[idx] === q.correctAnswer) {
-        score += 1;
-        earnedCoins += Number(q.coins || 0);
-      }
-    });
-
-    const attempt = new QuizAttempt({
-      quiz: quiz._id,
-      user: req.user._id,
-      answers,
-      score,
-      earnedCoins,
-    });
-    await attempt.save();
-
-    const user = await User.findById(req.user._id);
-    user.coins = (user.coins || 0) + earnedCoins;
-    await user.save();
-
-    res.json({
-      message: "Quiz submitted",
-      score,
-      totalQuestions: quiz.questions.length,
-      earnedCoins,
-      newBalance: user.coins,
-    });
+    res.json({ message: "Quiz published successfully", quiz });
   } catch (err) {
-    console.error("Submit error:", err);
-    res.status(500).json({ message: "Server error while submitting quiz" });
+    console.error("Publish error:", err);
+    res.status(500).json({ message: "Server error publishing quiz" });
   }
 });
+
 
 /**
  * Get attempts for user
