@@ -1,7 +1,8 @@
-// server/routes/tutorialRoutes.js
-const express = require("express");
-const axios = require("axios");
-require("dotenv").config();
+import express from "express";
+import axios from "axios";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ router.get("/", async (req, res) => {
     const channelId = "UC3-SPfd5eXr634xwk9Acung"; // your fixed channel ID
     const uploadsPlaylistId = "UU" + channelId.substring(2);
 
-    // Step 1: get all videos in uploads playlist
+    // Step 1: Get all videos in uploads playlist
     const playlistRes = await axios.get(
       "https://www.googleapis.com/youtube/v3/playlistItems",
       {
@@ -32,7 +33,7 @@ router.get("/", async (req, res) => {
       publishedAt: item.contentDetails.videoPublishedAt,
     }));
 
-    // Step 2: fetch details for durations
+    // Step 2: Fetch durations for each video
     const ids = basicVideos.map((v) => v.videoId).join(",");
     const detailsRes = await axios.get(
       "https://www.googleapis.com/youtube/v3/videos",
@@ -45,7 +46,7 @@ router.get("/", async (req, res) => {
       }
     );
 
-    // Step 3: attach durations and identify shorts
+    // Step 3: Map durations and mark shorts
     const durationMap = {};
     detailsRes.data.items.forEach((v) => {
       durationMap[v.id] = v.contentDetails.duration;
@@ -57,7 +58,7 @@ router.get("/", async (req, res) => {
       const mins = match?.[1] ? parseInt(match[1]) : 0;
       const secs = match?.[2] ? parseInt(match[2]) : 0;
       const totalSecs = mins * 60 + secs;
-      const isShort = totalSecs <= 60; // mark short videos but include them
+      const isShort = totalSecs <= 60;
       return { ...v, duration, totalSecs, isShort };
     });
 
@@ -68,4 +69,4 @@ router.get("/", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
