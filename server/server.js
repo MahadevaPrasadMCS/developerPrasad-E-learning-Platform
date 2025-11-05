@@ -15,8 +15,7 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:3000", // local dev
-    "https://youlearnhub-beta.vercel.app", // your live Vercel domain
-    "https://developer-prasad-e-learning-platfor.vercel.app", // your live Vercel domain
+    "https://youlearnhub-dp.vercel.app",
   ],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
