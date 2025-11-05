@@ -27,8 +27,6 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
 }));
-app.options("*", cors());
-
 
 app.use(express.json());
 app.use(compression());
