@@ -1,25 +1,39 @@
+// server/server.js
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import multer from "multer";
 import path from "path";
 import fs from "fs";
+import compression from "compression";
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
-app.use(express.json());
 
-// MongoDB Connection
+// Middleware
+app.use(cors({
+  origin: [
+    "http://localhost:3000", // local dev
+    "https://youlearnhub-frontend.vercel.app", // replace with your live frontend
+  ],
+  credentials: true,
+}));
+app.use(express.json());
+app.use(compression());
+
+// Ensure uploads folder exists
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+// MongoDB connection
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ DB Error:", err.message));
 
-// Static uploads path
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+// Serve static uploads
+app.use("/uploads", express.static(uploadsDir));
 
 // Import routes
 import authRoutes from "./routes/authRoutes.js";
@@ -49,11 +63,13 @@ app.use("/api/rewards", rewardRoutes);
 app.use("/api/store", storeRoutes);
 app.use("/api/tutorials", tutorialRoutes);
 
-// Default route
+// Root route
 app.get("/", (req, res) => {
   res.json({ msg: "Backend connected successfully ✅" });
 });
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`🚀 Server running on port ${PORT}`)
+);
