@@ -13,13 +13,22 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: [
-    "http://localhost:3000", // local dev
-    "https://youlearnhub-dp.vercel.app",
-  ],
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // allow Postman or server-side requests
+    const allowed = [
+      "http://localhost:3000",
+      "https://youlearnhub-dp.vercel.app",
+    ];
+    if (allowed.includes(origin) || origin.endsWith(".vercel.app")) {
+      return callback(null, true);
+    }
+    return callback(new Error("CORS blocked: origin not allowed"), false);
+  },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
 }));
+app.options("*", cors());
+
 
 app.use(express.json());
 app.use(compression());
