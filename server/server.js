@@ -15,10 +15,12 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:3000", // local dev
-    "https://youlearnhub-frontend.vercel.app", // replace with your live frontend
+    "https://developer-prasad-e-learning-platfor.vercel.app", // your live Vercel domain
   ],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
 }));
+
 app.use(express.json());
 app.use(compression());
 
