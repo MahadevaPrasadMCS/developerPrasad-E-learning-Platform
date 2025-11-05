@@ -1,5 +1,4 @@
-// server/models/QuizAttempt.js
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const attemptSchema = new mongoose.Schema({
   quiz: { type: mongoose.Schema.Types.ObjectId, ref: "Quiz", required: true },
@@ -10,4 +9,6 @@ const attemptSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model("QuizAttempt", attemptSchema);
+const QuizAttempt = mongoose.model("QuizAttempt", attemptSchema);
+
+export default QuizAttempt;
