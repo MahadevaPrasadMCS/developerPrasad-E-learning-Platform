@@ -1,5 +1,5 @@
 import express from "express";
-import Quiz from "../models/Quiz.js";
+import Quiz from "../models/quiz.js";
 import QuizAttempt from "../models/QuizAttempt.js";
 import User from "../models/User.js";
 import adminMiddleware from "../middleware/adminMiddleware.js";
