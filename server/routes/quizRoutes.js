@@ -136,13 +136,18 @@ router.post("/register/:id", authMiddleware, async (req, res) => {
 });
 
 /* ==================== USER: Get Active Quiz ==================== */
+/* ==================== USER: Get Active Quiz ==================== */
 router.get("/active", async (req, res) => {
   try {
     const now = new Date();
 
     const activeQuiz = await Quiz.findOne({
       status: "published",
-      startTime: { $lte: now },
+      $or: [
+        { startTime: { $exists: false } },
+        { startTime: null },
+        { startTime: { $lte: now } },
+      ],
       $or: [
         { endTime: { $exists: false } },
         { endTime: null },
@@ -150,8 +155,9 @@ router.get("/active", async (req, res) => {
       ],
     }).sort({ createdAt: -1 });
 
-    if (!activeQuiz)
+    if (!activeQuiz) {
       return res.status(404).json({ message: "No active quiz right now" });
+    }
 
     res.json(activeQuiz);
   } catch (err) {
@@ -159,6 +165,7 @@ router.get("/active", async (req, res) => {
     res.status(500).json({ message: "Server error fetching active quiz" });
   }
 });
+
 
 /* ==================== USER: Submit Quiz ==================== */
 router.post("/submit/:id", authMiddleware, async (req, res) => {
