@@ -90,6 +90,21 @@ router.get("/active", async (req, res) => {
   }
 });
 
+/* ==================== USER: Get My Quiz Attempts ==================== */
+router.get("/attempts/me", authMiddleware, async (req, res) => {
+  try {
+    const attempts = await QuizAttempt.find({ user: req.user._id })
+      .populate("quiz", "title status")
+      .sort({ createdAt: -1 });
+
+    res.json(attempts);
+  } catch (err) {
+    console.error("Fetch attempts error:", err);
+    res.status(500).json({ message: "Server error fetching attempts" });
+  }
+});
+
+
 /* ==================== USER: Submit Quiz ==================== */
 router.post("/submit/:id", authMiddleware, async (req, res) => {
   try {
