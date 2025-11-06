@@ -104,6 +104,35 @@ router.get("/attempts/me", authMiddleware, async (req, res) => {
   }
 });
 
+/* ==================== USER: Register for Quiz ==================== */
+router.post("/register/:id", authMiddleware, async (req, res) => {
+  try {
+    const quiz = await Quiz.findById(req.params.id);
+    if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+    if (quiz.status !== "published")
+      return res.status(400).json({ message: "Quiz is not published" });
+
+    const now = new Date();
+    // If quiz is scheduled
+    if (quiz.startTime && now < quiz.startTime)
+      return res.status(400).json({ message: "Quiz has not started yet" });
+    if (quiz.endTime && now > quiz.endTime)
+      return res.status(400).json({ message: "Quiz registration closed" });
+
+    // Prevent duplicate registration
+    if (quiz.participants.includes(req.user._id))
+      return res.status(400).json({ message: "Already registered" });
+
+    quiz.participants.push(req.user._id);
+    await quiz.save();
+
+    res.json({ message: "Registered successfully" });
+  } catch (err) {
+    console.error("Register quiz error:", err);
+    res.status(500).json({ message: "Server error during registration" });
+  }
+});
+
 
 /* ==================== USER: Submit Quiz ==================== */
 router.post("/submit/:id", authMiddleware, async (req, res) => {
