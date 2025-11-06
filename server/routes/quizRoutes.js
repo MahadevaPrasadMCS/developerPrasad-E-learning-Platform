@@ -28,6 +28,17 @@ router.post("/create", adminMiddleware, async (req, res) => {
   }
 });
 
+/* ==================== ADMIN: Get All Quizzes ==================== */
+router.get("/list", adminMiddleware, async (req, res) => {
+  try {
+    const quizzes = await Quiz.find().sort({ createdAt: -1 });
+    res.json(quizzes);
+  } catch (err) {
+    console.error("Fetch quizzes error:", err);
+    res.status(500).json({ message: "Server error fetching quizzes" });
+  }
+});
+
 /* ==================== ADMIN: Publish Quiz ==================== */
 router.put("/publish/:id", adminMiddleware, async (req, res) => {
   try {
