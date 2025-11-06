@@ -74,6 +74,21 @@ router.put("/unpublish/:id", adminMiddleware, async (req, res) => {
   }
 });
 
+/* ==================== ADMIN: Delete Quiz ==================== */
+router.delete("/:id", adminMiddleware, async (req, res) => {
+  try {
+    const quiz = await Quiz.findById(req.params.id);
+    if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+
+    await Quiz.findByIdAndDelete(req.params.id);
+    res.json({ message: "Quiz deleted successfully" });
+  } catch (err) {
+    console.error("Delete quiz error:", err);
+    res.status(500).json({ message: "Server error deleting quiz" });
+  }
+});
+
+
 /* ==================== USER: Get Active Quiz ==================== */
 router.get("/active", async (req, res) => {
   try {
