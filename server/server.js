@@ -6,27 +6,31 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import compression from "compression";
+import cron from "node-cron";          // ✅ added
+import Quiz from "./models/Quiz.js";   // ✅ added for auto-unpublish
 
 dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow Postman or server-side requests
-    const allowed = [
-      "http://localhost:3000",
-      "https://youlearnhub-dp.vercel.app",
-    ];
-    if (allowed.includes(origin) || origin.endsWith(".vercel.app")) {
-      return callback(null, true);
-    }
-    return callback(new Error("CORS blocked: origin not allowed"), false);
-  },
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  credentials: true,
-}));
+// ==================== Middleware ====================
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // allow Postman or server-side requests
+      const allowed = [
+        "http://localhost:3000",
+        "https://youlearnhub-dp.vercel.app",
+      ];
+      if (allowed.includes(origin) || origin.endsWith(".vercel.app")) {
+        return callback(null, true);
+      }
+      return callback(new Error("CORS blocked: origin not allowed"), false);
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 app.use(compression());
@@ -35,7 +39,7 @@ app.use(compression());
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
-// MongoDB connection
+// ==================== MongoDB Connection ====================
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
@@ -44,7 +48,7 @@ mongoose
 // Serve static uploads
 app.use("/uploads", express.static(uploadsDir));
 
-// Import routes
+// ==================== Import Routes ====================
 import authRoutes from "./routes/authRoutes.js";
 import quizRoutes from "./routes/quizRoutes.js";
 import leaderboardRoutes from "./routes/leaderboardRoutes.js";
@@ -58,7 +62,7 @@ import rewardRoutes from "./routes/rewardRoutes.js";
 import storeRoutes from "./routes/storeRoutes.js";
 import tutorialRoutes from "./routes/youtubeRoutes.js";
 
-// Use routes
+// ==================== Use Routes ====================
 app.use("/api/auth", authRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
@@ -72,13 +76,29 @@ app.use("/api/rewards", rewardRoutes);
 app.use("/api/store", storeRoutes);
 app.use("/api/tutorials", tutorialRoutes);
 
-// Root route
+// ==================== Root Route ====================
 app.get("/", (req, res) => {
   res.json({ msg: "Backend connected successfully ✅" });
 });
 
-// Start server
+// ==================== Auto-Unpublish Cron Job ====================
+// Runs every minute
+cron.schedule("* * * * *", async () => {
+  try {
+    const now = new Date();
+    const expired = await Quiz.updateMany(
+      { status: "published", endTime: { $lt: now } },
+      { status: "draft", startTime: null, endTime: null }
+    );
+
+    if (expired.modifiedCount > 0) {
+      console.log(`⏰ Auto-unpublished ${expired.modifiedCount} expired quizzes`);
+    }
+  } catch (err) {
+    console.error("⚠️ Auto-unpublish error:", err.message);
+  }
+});
+
+// ==================== Start Server ====================
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () =>
-  console.log(`🚀 Server running on port ${PORT}`)
-);
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

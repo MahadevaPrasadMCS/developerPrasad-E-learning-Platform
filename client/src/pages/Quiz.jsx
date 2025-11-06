@@ -7,27 +7,43 @@ function Quiz() {
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
   const [registered, setRegistered] = useState(false);
-  const [regMsg, setRegMsg] = useState("");
   const [answers, setAnswers] = useState([]);
   const [index, setIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState(null);
 
-  // Fetch active quiz
   useEffect(() => {
     (async () => {
       try {
         const res = await api.get("/quiz/active");
         const quiz = res.data;
         setActiveQuiz(quiz);
-        setAnswers(new Array(quiz.questions.length).fill(null));
 
-        if (quiz.participants && user) {
-          const isReg = quiz.participants.some(
-            (id) => String(id) === String(user._id)
+        if (quiz && quiz.questions)
+          setAnswers(new Array(quiz.questions.length).fill(null));
+
+        if (user && token) {
+          const attemptRes = await api.get("/quiz/attempts/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const attempt = attemptRes.data.find(
+            (a) => String(a.quiz._id) === String(quiz._id)
           );
-          setRegistered(isReg);
+          if (attempt) {
+            setResult({
+              score: attempt.score,
+              totalQuestions: attempt.answers.length,
+              earnedCoins: attempt.earnedCoins,
+            });
+            setSubmitted(true);
+            setRegistered(true);
+          } else {
+            const isReg =
+              quiz.participants?.some((id) => String(id) === String(user._id)) ||
+              false;
+            setRegistered(isReg);
+          }
         }
       } catch {
         setActiveQuiz(null);
@@ -35,37 +51,15 @@ function Quiz() {
         setLoading(false);
       }
     })();
-  }, [user]);
+  }, [user, token]);
 
-  // Handle registration
   const handleRegister = async () => {
-    if (!token) return setRegMsg("Please login to register.");
-    try {
-      await api.post(
-        `/quiz/register/${activeQuiz._id}`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setRegistered(true);
-      setRegMsg("✅ Registered successfully! Starting quiz...");
-    } catch (err) {
-      setRegMsg(err.response?.data?.message || "Registration failed");
-    }
+    if (!token) return alert("Login to register.");
+    await api.post(`/quiz/register/${activeQuiz._id}`, {}, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setRegistered(true);
   };
-
-  // Timer countdown
-  useEffect(() => {
-    if (!activeQuiz || submitted || !registered) return;
-    if (timeLeft <= 0) {
-      if (index < activeQuiz.questions.length - 1) {
-        setIndex((i) => i + 1);
-        setTimeLeft(30);
-      } else handleSubmit();
-      return;
-    }
-    const t = setInterval(() => setTimeLeft((l) => l - 1), 1000);
-    return () => clearInterval(t);
-  }, [timeLeft, index, submitted, activeQuiz, registered]);
 
   const selectOption = (qIdx, optionIdx) => {
     const newAnswers = [...answers];
@@ -108,22 +102,21 @@ function Quiz() {
       </div>
     );
 
-  // Quiz completed view
   if (submitted && result)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
         <div className="bg-white/80 rounded-2xl shadow-xl p-8 max-w-md w-full">
           <h2 className="text-3xl font-bold text-teal-600 mb-3">
-            Quiz Completed 🎉
+            Your Result 🎯
           </h2>
-          <p>Score: {result.score} / {result.totalQuestions}</p>
+          <p>
+            Score: {result.score} / {result.totalQuestions}
+          </p>
           <p>Coins Earned: {result.earnedCoins}</p>
-          <p>New Balance: {result.newBalance}</p>
         </div>
       </div>
     );
 
-  // Not registered yet
   if (!registered)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
@@ -137,17 +130,15 @@ function Quiz() {
         >
           Register Now
         </button>
-        {regMsg && <p className="mt-4 text-teal-600">{regMsg}</p>}
       </div>
     );
 
-  // Active quiz view
   const question = activeQuiz.questions[index];
   const progress = ((index + 1) / activeQuiz.questions.length) * 100;
 
   return (
     <div className="min-h-screen py-12 px-6">
-      <div className="max-w-3xl mx-auto bg-white/80 p-8 rounded-2xl shadow-lg">
+      <div className="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-lg">
         <div className="flex justify-between mb-4">
           <h2 className="text-xl font-bold text-teal-600">
             {activeQuiz.title}

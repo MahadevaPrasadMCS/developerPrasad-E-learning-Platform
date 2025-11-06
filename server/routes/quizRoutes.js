@@ -7,49 +7,28 @@ import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-/**
- * ADMIN: Create a new quiz (saved as draft)
- */
+/* ==================== ADMIN: Create Quiz ==================== */
 router.post("/create", adminMiddleware, async (req, res) => {
   try {
     const { title, description, questions } = req.body;
-    if (!title || !Array.isArray(questions) || questions.length === 0)
+    if (!title || !questions?.length)
       return res.status(400).json({ message: "Title and questions are required" });
 
-    const quiz = new Quiz({
+    const quiz = await Quiz.create({
       title,
-      description: description || "",
+      description,
       questions,
       status: "draft",
       createdBy: req.user._id,
     });
 
-    await quiz.save();
     res.status(201).json(quiz);
   } catch (err) {
-    console.error("Create quiz error:", err);
     res.status(500).json({ message: "Server error creating quiz" });
   }
 });
 
-/**
- * ADMIN: Get all quizzes
- */
-router.get("/list", adminMiddleware, async (req, res) => {
-  try {
-    const all = await Quiz.find()
-      .sort({ createdAt: -1 })
-      .populate("createdBy", "name email");
-    res.json(all);
-  } catch (err) {
-    res.status(500).json({ message: "Server error fetching quizzes" });
-  }
-});
-
-/**
- * ADMIN: Publish a quiz
- * If no start/end time provided, it becomes active immediately for 1 hour.
- */
+/* ==================== ADMIN: Publish Quiz ==================== */
 router.put("/publish/:id", adminMiddleware, async (req, res) => {
   try {
     const { startTime, endTime } = req.body;
@@ -60,133 +39,51 @@ router.put("/publish/:id", adminMiddleware, async (req, res) => {
     quiz.startTime = startTime ? new Date(startTime) : new Date();
     quiz.endTime = endTime
       ? new Date(endTime)
-      : new Date(Date.now() + 60 * 60 * 1000); // default 1 hour
+      : new Date(Date.now() + 60 * 60 * 1000);
 
     await quiz.save();
-
-    res.json({ message: "Quiz published successfully", quiz });
-  } catch (err) {
-    console.error("Publish error:", err);
-    res.status(500).json({ message: "Server error publishing quiz" });
+    res.json({ message: "Quiz published", quiz });
+  } catch {
+    res.status(500).json({ message: "Error publishing quiz" });
   }
 });
 
-/**
- * ADMIN: Unpublish quiz (set back to draft)
- */
+/* ==================== ADMIN: Unpublish ==================== */
 router.put("/unpublish/:id", adminMiddleware, async (req, res) => {
   try {
     const quiz = await Quiz.findById(req.params.id);
     if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-
     quiz.status = "draft";
     quiz.startTime = null;
     quiz.endTime = null;
     await quiz.save();
-
-    res.json({ message: "Quiz unpublished", quiz });
-  } catch (err) {
-    console.error("Unpublish error:", err);
-    res.status(500).json({ message: "Server error unpublishing quiz" });
+    res.json({ message: "Quiz unpublished" });
+  } catch {
+    res.status(500).json({ message: "Error unpublishing quiz" });
   }
 });
 
-/**
- * PUBLIC: Get all published quizzes
- */
-router.get("/published", async (req, res) => {
-  try {
-    const published = await Quiz.find({ status: "published" }).sort({
-      createdAt: -1,
-    });
-    res.json(published);
-  } catch (err) {
-    res.status(500).json({ message: "Server error fetching published quizzes" });
-  }
-});
-
-/**
- * USER: Register for a published quiz
- */
-router.post("/register/:id", authMiddleware, async (req, res) => {
-  try {
-    const quiz = await Quiz.findById(req.params.id);
-    if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-    if (quiz.status !== "published")
-      return res.status(400).json({ message: "Quiz is not published" });
-
-    const now = new Date();
-    if (quiz.startTime && now >= quiz.startTime && now <= quiz.endTime) {
-      // allowed: active quiz
-    } else if (quiz.startTime && now > quiz.endTime) {
-      return res.status(400).json({ message: "Registration closed" });
-    }
-
-    if (quiz.participants.includes(req.user._id))
-      return res.status(400).json({ message: "Already registered" });
-
-    quiz.participants.push(req.user._id);
-    await quiz.save();
-
-    res.json({ message: "Registered successfully" });
-  } catch (err) {
-    console.error("Register error:", err);
-    res.status(500).json({ message: "Server error during registration" });
-  }
-});
-
-/**
- * PUBLIC: Get currently active quiz
- * Fallback: If no active timed quiz, return latest published quiz.
- */
+/* ==================== USER: Get Active Quiz ==================== */
 router.get("/active", async (req, res) => {
   try {
     const now = new Date();
-
-    // Look for a time-bound quiz
-    const manual = await Quiz.findOne({
+    const active = await Quiz.findOne({
       status: "published",
       startTime: { $lte: now },
       endTime: { $gte: now },
     }).sort({ createdAt: -1 });
-
-    if (manual) return res.json(manual);
-
-    // Otherwise, return latest published quiz
-    const latest = await Quiz.findOne({ status: "published" }).sort({
-      createdAt: -1,
-    });
-    if (latest) return res.json({ ...latest._doc, auto: true });
-
-    res.status(404).json({ message: "No active quiz right now" });
-  } catch (err) {
-    console.error("Active quiz error:", err);
-    res.status(500).json({ message: "Server error fetching active quiz" });
+    if (!active) return res.status(404).json({ message: "No active quiz" });
+    res.json(active);
+  } catch {
+    res.status(500).json({ message: "Error fetching active quiz" });
   }
 });
 
-/**
- * USER: Submit answers for a quiz
- */
+/* ==================== USER: Submit Quiz ==================== */
 router.post("/submit/:id", authMiddleware, async (req, res) => {
   try {
-    const { answers } = req.body;
-    if (!Array.isArray(answers))
-      return res.status(400).json({ message: "Answers array required" });
-
     const quiz = await Quiz.findById(req.params.id);
     if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-
-    const now = new Date();
-    const isManual =
-      quiz.startTime && quiz.endTime && now >= quiz.startTime && now <= quiz.endTime;
-    const isFallback = quiz.status === "published";
-
-    if (!isManual && !isFallback)
-      return res.status(400).json({ message: "Quiz not active" });
-
-    if (!quiz.participants.includes(req.user._id))
-      return res.status(403).json({ message: "You must register first" });
 
     const already = await QuizAttempt.findOne({
       quiz: quiz._id,
@@ -194,86 +91,38 @@ router.post("/submit/:id", authMiddleware, async (req, res) => {
     });
     if (already) return res.status(400).json({ message: "Already attempted" });
 
+    const { answers } = req.body;
     let score = 0;
     let earnedCoins = 0;
+
     quiz.questions.forEach((q, i) => {
       const idx = answers[i];
       if (typeof idx === "number" && q.options[idx] === q.correctAnswer) {
-        score += 1;
+        score++;
         earnedCoins += Number(q.coins || 0);
       }
     });
 
-    const attempt = new QuizAttempt({
+    await QuizAttempt.create({
       quiz: quiz._id,
       user: req.user._id,
       answers,
       score,
       earnedCoins,
     });
-    await attempt.save();
 
     const user = await User.findById(req.user._id);
     user.coins = (user.coins || 0) + earnedCoins;
     await user.save();
 
     res.json({
-      message: "Quiz submitted successfully",
       score,
       totalQuestions: quiz.questions.length,
       earnedCoins,
       newBalance: user.coins,
     });
-  } catch (err) {
-    console.error("Submit error:", err);
-    res.status(500).json({ message: "Server error submitting quiz" });
-  }
-});
-
-/**
- * USER: Get my quiz attempts
- */
-router.get("/attempts/me", authMiddleware, async (req, res) => {
-  try {
-    const attempts = await QuizAttempt.find({ user: req.user._id }).populate(
-      "quiz",
-      "title"
-    );
-    res.json(attempts);
-  } catch (err) {
-    console.error("Attempt history error:", err);
-    res.status(500).json({ message: "Server error fetching attempts" });
-  }
-});
-
-/**
- * ADMIN: View all attempts for a quiz
- */
-router.get("/attempts/:quizId", adminMiddleware, async (req, res) => {
-  try {
-    const attempts = await QuizAttempt.find({
-      quiz: req.params.quizId,
-    }).populate("user", "name email");
-    res.json(attempts);
-  } catch (err) {
-    console.error("Admin attempts error:", err);
-    res.status(500).json({ message: "Server error fetching attempts" });
-  }
-});
-
-/**
- * ADMIN: Delete a quiz
- */
-router.delete("/:id", adminMiddleware, async (req, res) => {
-  try {
-    const quiz = await Quiz.findById(req.params.id);
-    if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-
-    await Quiz.findByIdAndDelete(req.params.id);
-    res.json({ message: "Quiz deleted successfully" });
-  } catch (err) {
-    console.error("Delete quiz error:", err);
-    res.status(500).json({ message: "Server error deleting quiz" });
+  } catch {
+    res.status(500).json({ message: "Error submitting quiz" });
   }
 });
 

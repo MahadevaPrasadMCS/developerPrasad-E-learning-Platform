@@ -1,63 +1,66 @@
+// src/context/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from "react";
 import api from "../utils/api";
 
 const AuthContext = createContext();
-
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(
-    JSON.parse(localStorage.getItem("user")) || null
-  );
-  const [token, setToken] = useState(localStorage.getItem("token") || "");
+  // Detect which role is active based on the route prefix
+  const roleKey = window.location.pathname.startsWith("/admin")
+    ? "admin"
+    : "user";
 
-  // Keep token synced with localStorage
+  // Load role-specific data
+  const [user, setUser] = useState(
+    JSON.parse(localStorage.getItem(`${roleKey}_user`)) || null
+  );
+  const [token, setToken] = useState(localStorage.getItem(`${roleKey}_token`) || "");
+
+  // Keep token synced
   useEffect(() => {
     if (token) {
-      localStorage.setItem("token", token);
+      localStorage.setItem(`${roleKey}_token`, token);
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     } else {
-      localStorage.removeItem("token");
+      localStorage.removeItem(`${roleKey}_token`);
       delete api.defaults.headers.common["Authorization"];
     }
-  }, [token]);
+  }, [token, roleKey]);
 
-  // Keep user synced with localStorage
+  // Keep user synced
   useEffect(() => {
-    if (user) localStorage.setItem("user", JSON.stringify(user));
-    else localStorage.removeItem("user");
-  }, [user]);
+    if (user) localStorage.setItem(`${roleKey}_user`, JSON.stringify(user));
+    else localStorage.removeItem(`${roleKey}_user`);
+  }, [user, roleKey]);
 
   // ✅ Register new user
   const register = async (name, email, password) => {
     await api.post("/auth/register", { name, email, password });
   };
 
-  // ✅ Store login result (DON’T call API here)
+  // ✅ Login handler (role-based)
   const login = (userData, authToken) => {
+    const currentRole = userData.role === "admin" ? "admin" : "user";
     setUser(userData);
     setToken(authToken);
-    localStorage.setItem("user", JSON.stringify(userData));
-    localStorage.setItem("token", authToken);
+    localStorage.setItem(`${currentRole}_user`, JSON.stringify(userData));
+    localStorage.setItem(`${currentRole}_token`, authToken);
     api.defaults.headers.common["Authorization"] = `Bearer ${authToken}`;
   };
 
-  // ✅ Logout clears everything
+  // ✅ Logout clears only current role data
   const logout = () => {
     setUser(null);
     setToken("");
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.removeItem(`${roleKey}_token`);
+    localStorage.removeItem(`${roleKey}_user`);
     delete api.defaults.headers.common["Authorization"];
   };
 
-  const value = {
-    user,
-    token,
-    register,
-    login,
-    logout,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, token, register, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

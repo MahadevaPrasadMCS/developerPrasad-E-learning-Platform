@@ -27,18 +27,22 @@ api.interceptors.request.use(
 );
 
 // Response interceptor
-api.interceptors.response.use(
-  (response) => {
-    NProgress.done();
-    return response;
+// src/utils/api.js
+api.interceptors.request.use(
+  (config) => {
+    NProgress.start();
+
+    const isAdmin = window.location.pathname.startsWith("/admin");
+    const token = localStorage.getItem(isAdmin ? "admin_token" : "user_token");
+
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
   },
   (error) => {
     NProgress.done();
-    import("react-hot-toast").then(({ default: toast }) => {
-      toast.error(error.response?.data?.message || "Something went wrong");
-    });
     return Promise.reject(error);
   }
 );
+
 
 export default api;
