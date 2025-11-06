@@ -90,18 +90,29 @@ router.delete("/:id", adminMiddleware, async (req, res) => {
 
 
 /* ==================== USER: Get Active Quiz ==================== */
+/* ==================== USER: Get Active Quiz ==================== */
 router.get("/active", async (req, res) => {
   try {
     const now = new Date();
-    const active = await Quiz.findOne({
+
+    // Case 1: A scheduled quiz that is currently within time range
+    const activeQuiz = await Quiz.findOne({
       status: "published",
       startTime: { $lte: now },
-      endTime: { $gte: now },
+      $or: [
+        { endTime: { $exists: false } },
+        { endTime: null },
+        { endTime: { $gte: now } }
+      ]
     }).sort({ createdAt: -1 });
-    if (!active) return res.status(404).json({ message: "No active quiz" });
-    res.json(active);
-  } catch {
-    res.status(500).json({ message: "Error fetching active quiz" });
+
+    if (!activeQuiz)
+      return res.status(404).json({ message: "No active quiz right now" });
+
+    res.json(activeQuiz);
+  } catch (err) {
+    console.error("Active quiz error:", err);
+    res.status(500).json({ message: "Server error fetching active quiz" });
   }
 });
 
