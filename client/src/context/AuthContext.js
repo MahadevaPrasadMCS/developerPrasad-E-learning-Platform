@@ -1,66 +1,87 @@
-// src/context/AuthContext.jsx
-import React, { createContext, useContext, useState, useEffect } from "react";
-import api from "../utils/api";
+// client/src/context/AuthContext.js
+import { createContext, useContext, useState, useEffect } from "react";
 
 const AuthContext = createContext();
-export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  // Detect which role is active based on the route prefix
-  const roleKey = window.location.pathname.startsWith("/admin")
-    ? "admin"
-    : "user";
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load role-specific data
-  const [user, setUser] = useState(
-    JSON.parse(localStorage.getItem(`${roleKey}_user`)) || null
-  );
-  const [token, setToken] = useState(localStorage.getItem(`${roleKey}_token`) || "");
-
-  // Keep token synced
+  // 🔹 Load auth data on mount
   useEffect(() => {
-    if (token) {
-      localStorage.setItem(`${roleKey}_token`, token);
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    } else {
-      localStorage.removeItem(`${roleKey}_token`);
-      delete api.defaults.headers.common["Authorization"];
+    const stored = localStorage.getItem("auth_data");
+    if (stored) {
+      try {
+        const { user, token } = JSON.parse(stored);
+        setUser(user);
+        setToken(token);
+      } catch {
+        localStorage.removeItem("auth_data");
+      }
     }
-  }, [token, roleKey]);
+    setLoading(false);
+  }, []);
 
-  // Keep user synced
+  // 🔹 Listen for login/logout from other tabs
   useEffect(() => {
-    if (user) localStorage.setItem(`${roleKey}_user`, JSON.stringify(user));
-    else localStorage.removeItem(`${roleKey}_user`);
-  }, [user, roleKey]);
+    const handleStorageChange = (e) => {
+      if (e.key === "auth_data") {
+        const newAuth = e.newValue ? JSON.parse(e.newValue) : null;
+        if (!newAuth) {
+          // Logged out elsewhere
+          setUser(null);
+          setToken(null);
+          window.location.href = "/login";
+        } else if (newAuth.token !== token) {
+          // Logged in elsewhere
+          setUser(newAuth.user);
+          setToken(newAuth.token);
+          window.location.reload();
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [token]);
 
-  // ✅ Register new user
-  const register = async (name, email, password) => {
-    await api.post("/auth/register", { name, email, password });
+  // 🔹 Login Function
+  const login = ({ user, token }) => {
+    const data = { user, token };
+    localStorage.setItem("auth_data", JSON.stringify(data));
+    setUser(user);
+    setToken(token);
   };
 
-  // ✅ Login handler (role-based)
-  const login = (userData, authToken) => {
-    const currentRole = userData.role === "admin" ? "admin" : "user";
-    setUser(userData);
-    setToken(authToken);
-    localStorage.setItem(`${currentRole}_user`, JSON.stringify(userData));
-    localStorage.setItem(`${currentRole}_token`, authToken);
-    api.defaults.headers.common["Authorization"] = `Bearer ${authToken}`;
-  };
-
-  // ✅ Logout clears only current role data
-  const logout = () => {
+  // 🔹 Logout Function
+  const logout = (reason) => {
+    localStorage.removeItem("auth_data");
     setUser(null);
-    setToken("");
-    localStorage.removeItem(`${roleKey}_token`);
-    localStorage.removeItem(`${roleKey}_user`);
-    delete api.defaults.headers.common["Authorization"];
+    setToken(null);
+    if (reason) alert(reason);
+    window.location.href = "/login";
+  };
+
+  // 🔹 Global session monitor (handles blocked or forced logout)
+  const handleAuthError = (status, message) => {
+    if (status === 403) {
+      if (message?.includes("blocked"))
+        logout("🚫 Your account has been blocked by admin.");
+      else if (message?.includes("Session expired"))
+        logout("⚠️ Your session expired. Please log in again.");
+      else logout("⚠️ Access denied. Please log in again.");
+    } else if (status === 503 && message?.includes("maintenance")) {
+      alert("🛠️ Site is under maintenance. Try again later.");
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, register, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, login, logout, setUser, handleAuthError, loading }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
+
+export const useAuth = () => useContext(AuthContext);
