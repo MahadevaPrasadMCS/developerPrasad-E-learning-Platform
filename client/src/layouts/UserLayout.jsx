@@ -17,19 +17,30 @@ function UserLayout() {
 
   const handleLogout = () => logout(user?.role);
 
+  // ✨ Custom styled NavItem with animated underline
   const NavItem = ({ to, label }) => (
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `block px-4 py-2 text-sm font-medium transition-colors duration-200 ${
+        `relative px-4 py-2 text-sm font-medium transition-all duration-300 group
+        ${
           isActive
-            ? "text-teal-600 dark:text-teal-400 border-b-2 border-teal-500"
+            ? "text-teal-600 dark:text-teal-400 font-semibold"
             : "text-gray-700 dark:text-gray-200 hover:text-teal-500"
         }`
       }
       onClick={() => setMenuOpen(false)}
     >
       {label}
+      {/* Underline accent animation */}
+      <span
+        className={`absolute left-0 bottom-0 w-full h-[2px] rounded-md bg-teal-500 dark:bg-teal-400 transform transition-transform duration-300 origin-left
+          ${
+            window.location.pathname === to
+              ? "scale-x-100"
+              : "scale-x-0 group-hover:scale-x-100"
+          }`}
+      ></span>
     </NavLink>
   );
 
@@ -72,16 +83,16 @@ function UserLayout() {
     { label: "Support", to: "/support" },
   ];
 
-  // 🧹 Clean up dropdown delay timer on unmount
+  // 🧹 Clean up dropdown timer
   useEffect(() => {
     return () => {
       if (dropdownTimer.current) clearTimeout(dropdownTimer.current);
     };
   }, []);
 
-  // 🌙 Navbar
   return (
     <div className="flex flex-col min-h-screen">
+      {/* 🌙 Navbar */}
       <nav className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/90 backdrop-blur-lg shadow-md transition-all">
         <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-3">
           {/* Logo */}
@@ -104,7 +115,8 @@ function UserLayout() {
             {!token ? (
               <>
                 <NavItem to="/" label="Home" />
-                {/* More dropdown for public */}
+
+                {/* Visit Dropdown */}
                 <div
                   className="relative"
                   onMouseEnter={() => {
@@ -116,7 +128,7 @@ function UserLayout() {
                   }}
                 >
                   <button
-                    className="flex items-center gap-1 px-3 py-2 hover:text-teal-500 dark:text-gray-200"
+                    className="flex items-center gap-1 px-3 py-2 hover:text-teal-500 dark:text-gray-200 transition-all duration-200"
                     onClick={() => setDropdown(dropdown === "more" ? null : "more")}
                   >
                     Visit
@@ -134,6 +146,7 @@ function UserLayout() {
                     ))}
                   </div>
                 </div>
+
                 <NavItem to="/register" label="Register" />
                 <NavItem to="/login" label="Login" />
               </>
@@ -151,7 +164,7 @@ function UserLayout() {
                   }}
                 >
                   <button
-                    className="flex items-center gap-1 px-3 py-2 hover:text-teal-500 dark:text-gray-200"
+                    className="flex items-center gap-1 px-3 py-2 hover:text-teal-500 dark:text-gray-200 transition-all duration-200"
                     onClick={() => setDropdown(dropdown === idx ? null : idx)}
                   >
                     {group.label}
@@ -244,10 +257,7 @@ function UserLayout() {
         <Outlet />
       </main>
 
-      {/* Cookie Consent */}
       <CookieConsent />
-
-      {/* Footer */}
       <Footer />
     </div>
   );

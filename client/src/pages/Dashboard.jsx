@@ -4,18 +4,43 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 function Dashboard() {
-  const { user, logout, handleAuthError } = useAuth();
+  const { user, setUser, logout, handleAuthError } = useAuth();
   const navigate = useNavigate();
+
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(true);
 
-  // 🚫 Handle blocked users (auto logout)
+  // 🚫 Auto logout if blocked
   useEffect(() => {
     if (user?.isBlocked) {
       logout("🚫 Your account is blocked. Contact admin.");
       navigate("/login");
     }
   }, [user, logout, navigate]);
+
+  // 🔄 Fetch latest user profile (for updated coins)
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user) return;
+      try {
+        const res = await api.get("/user/me");
+        const updated = res.data;
+        setUser(updated);
+
+        // 🔁 Sync with localStorage
+        const stored = JSON.parse(localStorage.getItem("auth_data") || "{}");
+        if (stored.user) stored.user.coins = updated.coins;
+        localStorage.setItem("auth_data", JSON.stringify(stored));
+      } catch (err) {
+        handleAuthError(err.response?.status, err.response?.data?.message);
+      } finally {
+        setRefreshing(false);
+      }
+    };
+
+    fetchUserData();
+  }, []); // fetch on mount
 
   // 📢 Fetch Announcements
   useEffect(() => {
@@ -32,6 +57,14 @@ function Dashboard() {
     };
     fetchAnnouncements();
   }, [handleAuthError]);
+
+  // ⚡ Quick buttons
+  const actions = [
+    { label: "🧠 Take Quiz", to: "/quiz", color: "bg-teal-600 hover:bg-teal-700" },
+    { label: "📘 Learn", to: "/learn", color: "bg-indigo-600 hover:bg-indigo-700" },
+    { label: "💳 Wallet", to: "/wallet", color: "bg-yellow-500 hover:bg-yellow-600" },
+    { label: "🏪 Store", to: "/store", color: "bg-purple-600 hover:bg-purple-700" },
+  ];
 
   if (!user)
     return (
@@ -83,7 +116,7 @@ function Dashboard() {
               Total Coins
             </p>
             <h2 className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 mt-1">
-              💰 {user.coins}
+              💰 {refreshing ? "..." : user.coins}
             </h2>
           </div>
         </div>
@@ -116,8 +149,7 @@ function Dashboard() {
                     {a.message || a.description}
                   </p>
 
-                  {/* Optional links */}
-                  {a.links && a.links.length > 0 && (
+                  {a.links?.length > 0 && (
                     <div className="mt-3 space-y-1">
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         🔗 Related Links:
@@ -154,16 +186,11 @@ function Dashboard() {
             🎯 Quick Actions
           </h2>
           <div className="flex flex-wrap justify-center gap-4">
-            {[
-              { label: "🧠 Take Quiz", to: "/quiz", color: "teal" },
-              { label: "📘 Learn", to: "/learn", color: "indigo" },
-              { label: "💳 Wallet", to: "/wallet", color: "yellow" },
-              { label: "🏪 Store", to: "/store", color: "purple" },
-            ].map((btn, i) => (
+            {actions.map((btn, i) => (
               <button
                 key={i}
                 onClick={() => navigate(btn.to)}
-                className={`px-6 py-2 bg-${btn.color}-600 hover:bg-${btn.color}-700 text-white rounded-lg font-medium shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1`}
+                className={`${btn.color} px-6 py-2 text-white rounded-lg font-medium shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1`}
               >
                 {btn.label}
               </button>

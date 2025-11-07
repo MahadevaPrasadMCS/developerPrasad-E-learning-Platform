@@ -33,7 +33,9 @@ function Wallet() {
   const filteredTransactions =
     filter === "All"
       ? wallet?.transactions || []
-      : wallet?.transactions?.filter((t) => t.type === filter.toLowerCase());
+      : wallet?.transactions?.filter((t) =>
+          filter === "Earn" ? t.type === "earn" : t.type === "spend"
+        );
 
   if (!user)
     return (

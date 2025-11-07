@@ -19,12 +19,11 @@ function PublishControls({ quiz, onSuccess, showToast }) {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [loading, setLoading] = useState(false);
-  const adminHeaders = { "X-Auth-Role": "admin" };
 
   const publish = async (data, successMsg) => {
     try {
       setLoading(true);
-      await api.put(`/quiz/publish/${quiz._id}`, data, { headers: adminHeaders });
+      await api.put(`/quiz/publish/${quiz._id}`, data);
       showToast(successMsg, "success");
       onSuccess();
     } catch (err) {
@@ -59,13 +58,15 @@ function PublishControls({ quiz, onSuccess, showToast }) {
           <button
             onClick={handlePublishNow}
             disabled={loading}
-            className="flex items-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition"
+            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-md shadow-sm transition-all"
           >
-            <CheckCircle2 size={14} /> {loading ? "Publishing..." : "Publish Now"}
+            <CheckCircle2 size={14} />
+            {loading ? "Publishing..." : "Publish Now"}
           </button>
+
           <button
             onClick={() => setIsScheduling(true)}
-            className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition"
+            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-md shadow-sm transition-all"
           >
             <Clock size={14} /> Schedule
           </button>
@@ -87,13 +88,13 @@ function PublishControls({ quiz, onSuccess, showToast }) {
           <button
             onClick={handleSchedule}
             disabled={loading}
-            className="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-md"
+            className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-md shadow-sm transition-all"
           >
             {loading ? "Scheduling..." : "Confirm"}
           </button>
           <button
             onClick={() => setIsScheduling(false)}
-            className="px-3 py-1 bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md"
+            className="px-3 py-1.5 bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md text-gray-800 dark:text-gray-200 transition-all"
           >
             Cancel
           </button>
@@ -120,8 +121,6 @@ function ManageQuiz() {
     ],
   });
 
-  const adminHeaders = { "X-Auth-Role": "admin" };
-
   const showToast = (msg, type = "info") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
@@ -130,7 +129,7 @@ function ManageQuiz() {
   const fetchQuizzes = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/quiz/list", { headers: adminHeaders });
+      const res = await api.get("/quiz/list");
       setQuizzes(res.data || []);
     } catch (err) {
       console.error("Fetch quizzes failed:", err);
@@ -171,7 +170,7 @@ function ManageQuiz() {
           coins: Number(q.coins),
         })),
       };
-      await api.post("/quiz/create", payload, { headers: adminHeaders });
+      await api.post("/quiz/create", payload);
       showToast("✅ Quiz created successfully (Draft).", "success");
       setForm({
         title: "",
@@ -188,7 +187,7 @@ function ManageQuiz() {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this quiz permanently?")) return;
     try {
-      await api.delete(`/quiz/${id}`, { headers: adminHeaders });
+      await api.delete(`/quiz/${id}`);
       showToast("🗑️ Quiz deleted successfully.", "success");
       fetchQuizzes();
     } catch {
@@ -199,7 +198,7 @@ function ManageQuiz() {
   const handleUnpublish = async (id) => {
     if (!window.confirm("Unpublish this quiz?")) return;
     try {
-      await api.put(`/quiz/unpublish/${id}`, {}, { headers: adminHeaders });
+      await api.put(`/quiz/unpublish/${id}`);
       showToast("⚠️ Quiz unpublished.", "info");
       fetchQuizzes();
     } catch {
@@ -212,7 +211,7 @@ function ManageQuiz() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-10 px-6">
-      {/* Toast */}
+      {/* Toast Notification */}
       {toast && (
         <div
           className={`fixed top-5 right-5 px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-fade-in z-50 ${
@@ -232,7 +231,7 @@ function ManageQuiz() {
           🧩 Manage Quizzes
         </h1>
 
-        {/* CREATE QUIZ */}
+        {/* CREATE QUIZ FORM */}
         <form
           onSubmit={handleCreate}
           className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-lg p-8 mb-10 hover:shadow-2xl transition-all"
@@ -257,7 +256,7 @@ function ManageQuiz() {
           {form.questions.map((q, qi) => (
             <div
               key={qi}
-              className="p-4 mb-4 border rounded-lg bg-gray-50 dark:bg-gray-700/50 dark:border-gray-600 transition-all"
+              className="p-4 mb-4 border rounded-lg bg-gray-50 dark:bg-gray-700/50 dark:border-gray-600 transition-all shadow-sm"
             >
               <div className="flex justify-between items-center mb-2">
                 <h3 className="font-semibold text-gray-800 dark:text-gray-100">
@@ -270,7 +269,7 @@ function ManageQuiz() {
                       const updated = form.questions.filter((_, i) => i !== qi);
                       setForm({ ...form, questions: updated });
                     }}
-                    className="text-sm text-red-500 hover:text-red-700"
+                    className="text-sm text-red-500 hover:text-red-700 transition"
                   >
                     Remove
                   </button>
@@ -287,6 +286,7 @@ function ManageQuiz() {
                 placeholder="Enter question"
                 className="w-full p-2 mb-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-teal-500"
               />
+
               {q.options.map((opt, oi) => (
                 <div key={oi} className="flex items-center gap-2 mb-2">
                   <input
@@ -315,37 +315,38 @@ function ManageQuiz() {
             </div>
           ))}
 
-          {/* Add Question Button */}
-          <button
-            type="button"
-            onClick={() =>
-              setForm({
-                ...form,
-                questions: [
-                  ...form.questions,
-                  {
-                    question: "",
-                    options: ["", "", "", ""],
-                    correctAnswerIndex: null,
-                    coins: 10,
-                  },
-                ],
-              })
-            }
-            className="mt-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition"
-          >
-            + Add Question
-          </button>
+          <div className="flex flex-wrap gap-3 items-center mt-3">
+            <button
+              type="button"
+              onClick={() =>
+                setForm({
+                  ...form,
+                  questions: [
+                    ...form.questions,
+                    {
+                      question: "",
+                      options: ["", "", "", ""],
+                      correctAnswerIndex: null,
+                      coins: 10,
+                    },
+                  ],
+                })
+              }
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow-sm transition-all"
+            >
+              + Add Question
+            </button>
 
-          <button
-            type="submit"
-            className="mt-4 px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition"
-          >
-            Create Quiz
-          </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-md transition-all"
+            >
+              Create Quiz
+            </button>
+          </div>
         </form>
 
-        {/* QUIZ LIST */}
+        {/* QUIZ LIST SECTION */}
         {loading ? (
           <div className="flex justify-center items-center gap-3 text-gray-600 dark:text-gray-400">
             <Loader2 className="animate-spin w-5 h-5" /> Loading quizzes...
@@ -358,20 +359,20 @@ function ManageQuiz() {
 
             let statusLabel = "Draft";
             let badgeStyle =
-              "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300";
+              "bg-gradient-to-r from-yellow-100 to-yellow-50 text-yellow-800 dark:from-yellow-700/40 dark:to-yellow-800/20 dark:text-yellow-300";
 
             if (end && now > end) {
               statusLabel = "Expired";
               badgeStyle =
-                "bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300";
+                "bg-gradient-to-r from-red-100 to-red-50 text-red-800 dark:from-red-700/40 dark:to-red-800/20 dark:text-red-300";
             } else if (start && now < start) {
               statusLabel = "Scheduled";
               badgeStyle =
-                "bg-blue-100 text-blue-700 dark:bg-blue-700/30 dark:text-blue-300";
+                "bg-gradient-to-r from-blue-100 to-blue-50 text-blue-800 dark:from-blue-700/40 dark:to-blue-800/20 dark:text-blue-300";
             } else if (start && now >= start && end && now <= end) {
               statusLabel = "Live";
               badgeStyle =
-                "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300";
+                "bg-gradient-to-r from-green-100 to-green-50 text-green-800 dark:from-green-700/40 dark:to-green-800/20 dark:text-green-300";
             }
 
             return (
@@ -409,10 +410,12 @@ function ManageQuiz() {
 
                   <div className="flex flex-wrap gap-2">
                     <button
-                      className="flex items-center gap-1 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition"
+                      disabled
+                      className="flex items-center gap-1 px-4 py-1.5 bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md text-sm cursor-not-allowed"
                     >
                       <Edit size={14} /> Edit
                     </button>
+
                     {q.status === "draft" ? (
                       <PublishControls
                         quiz={q}
@@ -422,14 +425,15 @@ function ManageQuiz() {
                     ) : (
                       <button
                         onClick={() => handleUnpublish(q._id)}
-                        className="flex items-center gap-1 px-4 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md text-sm transition"
+                        className="flex items-center gap-1 px-4 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md text-sm transition-all"
                       >
                         <XCircle size={14} /> Unpublish
                       </button>
                     )}
+
                     <button
                       onClick={() => handleDelete(q._id)}
-                      className="flex items-center gap-1 px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm transition"
+                      className="flex items-center gap-1 px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm transition-all"
                     >
                       <Trash size={14} /> Delete
                     </button>
