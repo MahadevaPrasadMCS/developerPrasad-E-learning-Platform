@@ -1,38 +1,29 @@
 import express from "express";
-import nodemailer from "nodemailer";
 import rateLimit from "express-rate-limit";
 import { body, validationResult } from "express-validator";
+import sgMail from "@sendgrid/mail";
 
 const router = express.Router();
 
 /* ============================================================
-⏳ Rate limit: 5 requests/hour per IP
+🛡️ Rate limit: 5 contact requests per hour per IP
 ============================================================ */
 const limiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 60 * 60 * 1000,
   max: 5,
-  message: {
-    message: "Too many contact requests from this IP. Try again later.",
-  },
+  message: { message: "Too many contact requests. Try again in an hour." },
 });
 
 /* ============================================================
-📧 Create transporter with SMTP credentials
+📧 Configure SendGrid
 ============================================================ */
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: process.env.SMTP_SECURE === "true", // true for 465
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-};
+if (!process.env.SENDGRID_API_KEY) {
+  console.error("❌ Missing SENDGRID_API_KEY in environment variables!");
+}
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 /* ============================================================
-📨 Contact form route with better error handling
+📨 Contact form endpoint
 ============================================================ */
 router.post(
   "/",
@@ -41,7 +32,7 @@ router.post(
     body("name")
       .trim()
       .isLength({ min: 2 })
-      .withMessage("Name must be at least 2 characters long."),
+      .withMessage("Name must be at least 2 characters."),
     body("email").isEmail().withMessage("Invalid email format."),
     body("message")
       .trim()
@@ -49,7 +40,6 @@ router.post(
       .withMessage("Message must be at least 5 characters long."),
   ],
   async (req, res) => {
-    // ✅ Validate fields
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       const firstError = errors.array()[0].msg;
@@ -59,59 +49,35 @@ router.post(
     const { name, email, message } = req.body;
 
     try {
-      const transporter = createTransporter();
-
-      // Verify transporter before sending
-      await transporter.verify();
-
-      const mailOptions = {
-        from: `"${name}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
-        to: process.env.CONTACT_RECEIVER || process.env.SMTP_USER,
+      const msg = {
+        to: process.env.CONTACT_RECEIVER,
+        from: process.env.CONTACT_FROM,
         subject: `[YouLearnHub] New message from ${name}`,
-        text: `
-YouLearnHub Contact Form
-
-Name: ${name}
-Email: ${email}
-Message:
-${message}
-
--- Sent from YouLearnHub
-        `,
+        text: `From: ${name} <${email}>\n\n${message}`,
         html: `
-          <div style="font-family: sans-serif; line-height: 1.5;">
+          <div style="font-family: Arial, sans-serif; line-height: 1.6;">
             <h3>📩 YouLearnHub Contact Form</h3>
             <p><strong>Name:</strong> ${name}</p>
             <p><strong>Email:</strong> ${email}</p>
             <p><strong>Message:</strong></p>
-            <div style="white-space: pre-wrap; background:#f8fafc; padding:10px; border-radius:6px;">
+            <div style="background: #f1f5f9; padding: 10px; border-radius: 6px; white-space: pre-wrap;">
               ${message}
             </div>
             <hr/>
-            <p style="font-size:12px;color:#6b7280;">Sent from YouLearnHub</p>
+            <p style="font-size:12px; color:#64748b;">Sent from YouLearnHub Contact Form</p>
           </div>
         `,
       };
 
-      await transporter.sendMail(mailOptions);
+      await sgMail.send(msg);
 
-      console.log(`✅ Contact message sent by: ${name} <${email}>`);
-      return res.json({ message: "Message delivered successfully. Thank you!" });
+      console.log(`✅ Contact email sent from ${name} <${email}>`);
+      return res.json({ message: "✅ Message delivered successfully!" });
     } catch (err) {
-      console.error("❌ Contact send error:", err.message);
-
-      // Handle specific SMTP errors
-      if (err.code === "EAUTH") {
-        return res
-          .status(500)
-          .json({ message: "Email authentication failed. Check SMTP credentials." });
+      console.error("❌ SendGrid error:", err.message);
+      if (err.response?.body?.errors) {
+        console.error("SendGrid details:", err.response.body.errors);
       }
-      if (err.code === "ENOTFOUND" || err.code === "ECONNECTION") {
-        return res
-          .status(500)
-          .json({ message: "Mail server connection failed. Try again later." });
-      }
-
       return res
         .status(500)
         .json({ message: "Failed to send message. Please try again later." });
