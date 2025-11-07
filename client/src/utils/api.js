@@ -4,10 +4,7 @@ import "nprogress/nprogress.css";
 
 // 🌍 Backend baseURL — auto adapts for dev/production
 const api = axios.create({
-  baseURL:
-    window.location.hostname === "localhost"
-      ? "http://localhost:5000/api"
-      : "https://youlearnhub-backend.onrender.com/api",
+  baseURL: "shttps://youlearnhub-backend.onrender.com/api",
   headers: { "Content-Type": "application/json" },
 });
 
