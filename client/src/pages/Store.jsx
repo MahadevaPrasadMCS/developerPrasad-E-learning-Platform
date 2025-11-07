@@ -13,8 +13,8 @@ function Store() {
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
+  const [error, setError] = useState("");
 
-  // Fetch store items + wallet
   useEffect(() => {
     const fetchAll = async () => {
       try {
@@ -28,11 +28,10 @@ function Store() {
         ]);
 
         setResources(resResources.data || []);
-        if (resWallet?.data?.user) {
-          setWallet(resWallet.data.user.coins || 0);
-        }
+        if (resWallet?.data?.user) setWallet(resWallet.data.user.coins || 0);
       } catch (err) {
-        console.error("Store load error:", err);
+        console.error("❌ Error loading store:", err);
+        setError("Failed to load resources. Please refresh.");
       } finally {
         setLoading(false);
       }
@@ -40,7 +39,6 @@ function Store() {
     fetchAll();
   }, [token]);
 
-  // Redeem resource and download file
   const handleRedeem = async (resource) => {
     if (!token) {
       alert("Please log in to redeem resources.");
@@ -49,7 +47,7 @@ function Store() {
     }
 
     if (wallet < resource.coinsRequired) {
-      alert("Not enough coins. Earn more by playing quizzes.");
+      alert("Not enough coins. Earn more by taking quizzes.");
       return;
     }
 
@@ -63,18 +61,24 @@ function Store() {
     try {
       setProcessingId(resource._id);
 
-      // Redeem resource
+      // Redeem and deduct coins
       const res = await api.post(
         "/store/redeem",
         { resourceId: resource._id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      alert(res.data.message || "Purchased successfully!");
+      alert(res.data.message || "Redeemed successfully!");
       setWallet(res.data.newBalance);
 
-      // Download securely
-      const downloadUrl = `http://localhost:5000/api/store/download/${encodeURIComponent(
+      // Determine backend URL dynamically
+      const baseURL =
+        window.location.hostname === "localhost"
+          ? "http://localhost:5000"
+          : "https://youlearnhub-backend.onrender.com";
+
+      // Secure download
+      const downloadUrl = `${baseURL}/api/store/download/${encodeURIComponent(
         resource.fileName
       )}?token=${encodeURIComponent(token)}`;
 
@@ -93,8 +97,8 @@ function Store() {
       const ext = resource.fileName.split(".").pop();
       saveAs(blob, `${resource.title}.${ext}`);
     } catch (err) {
-      console.error("Redeem error:", err);
-      alert(err.response?.data?.message || "Purchase or download failed");
+      console.error("Redeem/download error:", err);
+      alert(err.response?.data?.message || "Purchase or download failed.");
     } finally {
       setProcessingId(null);
     }
@@ -104,6 +108,15 @@ function Store() {
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-600 dark:text-gray-300">
         Loading store...
+      </div>
+    );
+
+  if (error)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 px-8 py-5 rounded-xl shadow-lg text-center">
+          {error}
+        </div>
       </div>
     );
 
@@ -120,16 +133,19 @@ function Store() {
               Available Coins
             </p>
             <p className="text-3xl font-bold text-yellow-500 drop-shadow-sm">
-              {wallet} 🪙
+              {wallet.toLocaleString()} 🪙
             </p>
           </div>
         </div>
 
-        {/* Store Grid */}
+        {/* Store Items */}
         {resources.length === 0 ? (
-          <div className="text-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-md py-16 rounded-2xl shadow-md">
-            <p className="text-gray-600 dark:text-gray-400 text-lg">
+          <div className="text-center py-20 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl shadow-lg">
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">
               No resources available yet.
+            </p>
+            <p className="text-gray-500 dark:text-gray-500">
+              Check back soon for new study materials!
             </p>
           </div>
         ) : (
@@ -140,6 +156,7 @@ function Store() {
                 className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-6 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 animate-fade-in"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
+                {/* Title & Type */}
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
                     {r.title}
@@ -155,11 +172,13 @@ function Store() {
                   </span>
                 </div>
 
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4 min-h-[48px]">
-                  {r.description || "No description available."}
+                {/* Description */}
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-5 min-h-[48px] leading-relaxed">
+                  {r.description || "No description provided."}
                 </p>
 
-                <div className="flex justify-between items-center mb-5">
+                {/* Cost */}
+                <div className="flex justify-between items-center mb-6">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     Cost:
                   </p>
@@ -168,12 +187,13 @@ function Store() {
                   </span>
                 </div>
 
+                {/* Redeem Button */}
                 <button
                   onClick={() => handleRedeem(r)}
                   disabled={processingId === r._id || wallet < r.coinsRequired}
-                  className={`w-full py-2 rounded-lg font-medium shadow transition-all duration-200 ${
+                  className={`w-full py-2.5 rounded-lg font-medium shadow-md transition-all duration-200 ${
                     wallet >= r.coinsRequired
-                      ? "bg-teal-500 hover:bg-teal-600 text-white"
+                      ? "bg-teal-600 hover:bg-teal-700 text-white hover:shadow-lg"
                       : "bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed"
                   }`}
                 >
