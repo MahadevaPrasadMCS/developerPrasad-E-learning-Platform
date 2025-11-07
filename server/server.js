@@ -1,4 +1,4 @@
-// server/server.js
+// server.js
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
@@ -6,8 +6,8 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import compression from "compression";
-import cron from "node-cron";          // ✅ added
-import Quiz from "./models/Quiz.js";   // ✅ added for auto-unpublish
+import cron from "node-cron";
+import Quiz from "./models/Quiz.js";
 
 dotenv.config();
 
@@ -16,17 +16,10 @@ const app = express();
 // ==================== Middleware ====================
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // allow Postman or server-side requests
-      const allowed = [
-        "http://localhost:3000",
-        "https://youlearnhub-dp.vercel.app",
-      ];
-      if (allowed.includes(origin) || origin.endsWith(".vercel.app")) {
-        return callback(null, true);
-      }
-      return callback(new Error("CORS blocked: origin not allowed"), false);
-    },
+    origin: [
+      "http://localhost:3000",
+      "https://youlearnhub-dp.vercel.app",
+    ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
   })
@@ -40,13 +33,26 @@ const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 // ==================== MongoDB Connection ====================
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ DB Error:", err.message));
+mongoose.set("strictQuery", true);
 
-// Serve static uploads
-app.use("/uploads", express.static(uploadsDir));
+async function connectDB() {
+  try {
+    console.log("🔄 Connecting to MongoDB...");
+    const conn = await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 10000,
+    });
+    console.log(`✅ MongoDB connected: ${conn.connection.host}`);
+  } catch (err) {
+    console.error("❌ MongoDB Connection Error:", err.message);
+    console.error("Retrying in 5s...");
+    setTimeout(connectDB, 5000);
+  }
+}
+
+await connectDB(); // ✅ Connect before anything else
 
 // ==================== Import Routes ====================
 import authRoutes from "./routes/authRoutes.js";
@@ -55,12 +61,17 @@ import leaderboardRoutes from "./routes/leaderboardRoutes.js";
 import walletRoutes from "./routes/walletRoutes.js";
 import communityRoutes from "./routes/communityRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import adminStatsRoutes from "./routes/adminStatsRoutes.js";
+import adminUserRoutes from "./routes/adminUserRoutes.js";
+import adminControlRoutes from "./routes/adminControlRoutes.js";
 import announcementRoutes from "./routes/announcementRoutes.js";
 import resourceRoutes from "./routes/resourceRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import rewardRoutes from "./routes/rewardRoutes.js";
 import storeRoutes from "./routes/storeRoutes.js";
 import tutorialRoutes from "./routes/youtubeRoutes.js";
+import { startQuizExpiryJob } from "./cron/quizExpiryJob.js";
+import contactRoutes from "./routes/contactRoutes.js";
 
 // ==================== Use Routes ====================
 app.use("/api/auth", authRoutes);
@@ -69,12 +80,16 @@ app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/community", communityRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin/stats", adminStatsRoutes);
+app.use("/api/admin", adminUserRoutes);
+app.use("/api/admin/control", adminControlRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/resources", resourceRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/rewards", rewardRoutes);
 app.use("/api/store", storeRoutes);
 app.use("/api/tutorials", tutorialRoutes);
+app.use("/api/contact", contactRoutes);
 
 // ==================== Root Route ====================
 app.get("/", (req, res) => {
@@ -82,22 +97,27 @@ app.get("/", (req, res) => {
 });
 
 // ==================== Auto-Unpublish Cron Job ====================
-// Runs every minute
-cron.schedule("* * * * *", async () => {
-  try {
-    const now = new Date();
-    const expired = await Quiz.updateMany(
-      { status: "published", endTime: { $lt: now } },
-      { status: "draft", startTime: null, endTime: null }
-    );
+mongoose.connection.once("open", () => {
+  console.log("🕐 Cron job started after MongoDB connection established.");
 
-    if (expired.modifiedCount > 0) {
-      console.log(`⏰ Auto-unpublished ${expired.modifiedCount} expired quizzes`);
+  cron.schedule("* * * * *", async () => {
+    try {
+      const now = new Date();
+      const expired = await Quiz.updateMany(
+        { status: "published", endTime: { $lt: now } },
+        { status: "draft", startTime: null, endTime: null }
+      );
+
+      if (expired.modifiedCount > 0) {
+        console.log(`⏰ Auto-unpublished ${expired.modifiedCount} expired quizzes`);
+      }
+    } catch (err) {
+      console.error("⚠️ Auto-unpublish error:", err.message);
     }
-  } catch (err) {
-    console.error("⚠️ Auto-unpublish error:", err.message);
-  }
+  });
 });
+
+startQuizExpiryJob();
 
 // ==================== Start Server ====================
 const PORT = process.env.PORT || 5000;
