@@ -111,7 +111,6 @@ function ManageQuiz() {
   const [quizzes, setQuizzes] = useState([]);
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [editingQuiz, setEditingQuiz] = useState(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -260,9 +259,24 @@ function ManageQuiz() {
               key={qi}
               className="p-4 mb-4 border rounded-lg bg-gray-50 dark:bg-gray-700/50 dark:border-gray-600 transition-all"
             >
-              <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-2">
-                Question {qi + 1}
-              </h3>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-100">
+                  Question {qi + 1}
+                </h3>
+                {form.questions.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = form.questions.filter((_, i) => i !== qi);
+                      setForm({ ...form, questions: updated });
+                    }}
+                    className="text-sm text-red-500 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+
               <input
                 value={q.question}
                 onChange={(e) => {
@@ -301,9 +315,31 @@ function ManageQuiz() {
             </div>
           ))}
 
+          {/* Add Question Button */}
+          <button
+            type="button"
+            onClick={() =>
+              setForm({
+                ...form,
+                questions: [
+                  ...form.questions,
+                  {
+                    question: "",
+                    options: ["", "", "", ""],
+                    correctAnswerIndex: null,
+                    coins: 10,
+                  },
+                ],
+              })
+            }
+            className="mt-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition"
+          >
+            + Add Question
+          </button>
+
           <button
             type="submit"
-            className="mt-3 px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition"
+            className="mt-4 px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition"
           >
             Create Quiz
           </button>
@@ -360,10 +396,12 @@ function ManageQuiz() {
                     {start && end && (
                       <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                         <p>
-                          <span className="font-medium">Start:</span> {start.toLocaleString()}
+                          <span className="font-medium">Start:</span>{" "}
+                          {start.toLocaleString()}
                         </p>
                         <p>
-                          <span className="font-medium">End:</span> {end.toLocaleString()}
+                          <span className="font-medium">End:</span>{" "}
+                          {end.toLocaleString()}
                         </p>
                       </div>
                     )}
@@ -371,13 +409,16 @@ function ManageQuiz() {
 
                   <div className="flex flex-wrap gap-2">
                     <button
-                      onClick={() => setEditingQuiz(q)}
                       className="flex items-center gap-1 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition"
                     >
                       <Edit size={14} /> Edit
                     </button>
                     {q.status === "draft" ? (
-                      <PublishControls quiz={q} onSuccess={fetchQuizzes} showToast={showToast} />
+                      <PublishControls
+                        quiz={q}
+                        onSuccess={fetchQuizzes}
+                        showToast={showToast}
+                      />
                     ) : (
                       <button
                         onClick={() => handleUnpublish(q._id)}
