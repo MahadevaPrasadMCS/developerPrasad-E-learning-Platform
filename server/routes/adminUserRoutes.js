@@ -1,5 +1,6 @@
 import express from "express";
 import User from "../models/User.js";
+import Wallet from "../models/Wallet.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import adminMiddleware from "../middleware/adminMiddleware.js";
 
@@ -7,7 +8,6 @@ const router = express.Router();
 
 /* =========================================================
    1️⃣ FETCH ALL USERS
-   GET /api/admin/control/users
 ========================================================= */
 router.get("/users", authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -20,8 +20,52 @@ router.get("/users", authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 /* =========================================================
-   2️⃣ BLOCK / UNBLOCK USER
-   PUT /api/admin/control/users/:id/block
+   2️⃣ UPDATE USER COINS (+/-)
+========================================================= */
+router.put("/users/:id/coins", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { amount } = req.body;
+    if (typeof amount !== "number")
+      return res.status(400).json({ message: "Amount must be a number." });
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: "User not found." });
+    if (user.role === "admin")
+      return res.status(403).json({ message: "Cannot modify admin coins." });
+
+    // Adjust coins safely
+    user.coins = Math.max(0, (user.coins || 0) + amount);
+    await user.save();
+
+    // Sync with Wallet
+    let wallet = await Wallet.findOne({ user: user._id });
+    if (!wallet) wallet = new Wallet({ user: user._id, transactions: [] });
+
+    wallet.transactions.push({
+      type: amount >= 0 ? "earn" : "spend",
+      amount: Math.abs(amount),
+      description:
+        amount >= 0
+          ? `Admin rewarded ${amount} coins`
+          : `Admin deducted ${Math.abs(amount)} coins`,
+    });
+    await wallet.save();
+
+    res.json({
+      message:
+        amount >= 0
+          ? "✅ Coins added successfully."
+          : "⚠️ Coins deducted successfully.",
+      newBalance: user.coins,
+    });
+  } catch (err) {
+    console.error("Coin update error:", err);
+    res.status(500).json({ message: "Failed to update user coins." });
+  }
+});
+
+/* =========================================================
+   3️⃣ BLOCK / UNBLOCK USER
 ========================================================= */
 router.put("/users/:id/block", authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -36,8 +80,7 @@ router.put("/users/:id/block", authMiddleware, adminMiddleware, async (req, res)
 });
 
 /* =========================================================
-   3️⃣ FORCE LOGOUT ALL USERS
-   POST /api/admin/control/force-logout
+   4️⃣ FORCE LOGOUT ALL USERS
 ========================================================= */
 router.post("/force-logout", authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -50,8 +93,7 @@ router.post("/force-logout", authMiddleware, adminMiddleware, async (req, res) =
 });
 
 /* =========================================================
-   4️⃣ MAINTENANCE MODE
-   POST /api/admin/control/maintenance/:status
+   5️⃣ MAINTENANCE MODE (Toggle)
 ========================================================= */
 let maintenanceMode = false;
 
@@ -70,23 +112,21 @@ router.get("/maintenance/status", (req, res) => {
 });
 
 /* =========================================================
-   5️⃣ UPDATE USER ROLE
-   PUT /api/admin/control/role/:id
+   6️⃣ UPDATE USER ROLE
 ========================================================= */
 router.put("/role/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { role } = req.body;
-    if (!["user", "admin"].includes(role)) {
-      return res.status(400).json({ message: "Invalid role" });
-    }
+    if (!["user", "admin"].includes(role))
+      return res.status(400).json({ message: "Invalid role." });
 
     const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: "User not found." });
 
     res.json({ message: `✅ User role updated to ${role}`, user });
   } catch (err) {
     console.error("Role update error:", err);
-    res.status(500).json({ message: "Server error updating role" });
+    res.status(500).json({ message: "Failed to update user role." });
   }
 });
 
