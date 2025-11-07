@@ -5,14 +5,20 @@ import { body, validationResult } from "express-validator";
 
 const router = express.Router();
 
-// ⏳ Rate limit: 5 requests/hour per IP
+/* ============================================================
+⏳ Rate limit: 5 requests/hour per IP
+============================================================ */
 const limiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: 60 * 60 * 1000, // 1 hour
   max: 5,
-  message: { message: "Too many contact requests from this IP. Try again later." },
+  message: {
+    message: "Too many contact requests from this IP. Try again later.",
+  },
 });
 
-// 📧 Create transporter with SMTP credentials
+/* ============================================================
+📧 Create transporter with SMTP credentials
+============================================================ */
 const createTransporter = () => {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -25,17 +31,29 @@ const createTransporter = () => {
   });
 };
 
-// 📨 Contact form route
+/* ============================================================
+📨 Contact form route with better error handling
+============================================================ */
 router.post(
   "/",
   limiter,
-  body("name").trim().isLength({ min: 2 }),
-  body("email").isEmail(),
-  body("message").trim().isLength({ min: 5 }),
+  [
+    body("name")
+      .trim()
+      .isLength({ min: 2 })
+      .withMessage("Name must be at least 2 characters long."),
+    body("email").isEmail().withMessage("Invalid email format."),
+    body("message")
+      .trim()
+      .isLength({ min: 5 })
+      .withMessage("Message must be at least 5 characters long."),
+  ],
   async (req, res) => {
+    // ✅ Validate fields
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ message: "Invalid input. Please check fields." });
+      const firstError = errors.array()[0].msg;
+      return res.status(400).json({ message: firstError });
     }
 
     const { name, email, message } = req.body;
@@ -43,12 +61,15 @@ router.post(
     try {
       const transporter = createTransporter();
 
+      // Verify transporter before sending
+      await transporter.verify();
+
       const mailOptions = {
         from: `"${name}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
         to: process.env.CONTACT_RECEIVER || process.env.SMTP_USER,
-        subject: `[YouLearnHub] Contact form message from ${name}`,
+        subject: `[YouLearnHub] New message from ${name}`,
         text: `
-YouLearnHub contact form message
+YouLearnHub Contact Form
 
 Name: ${name}
 Email: ${email}
@@ -59,7 +80,7 @@ ${message}
         `,
         html: `
           <div style="font-family: sans-serif; line-height: 1.5;">
-            <h3>YouLearnHub Contact Form</h3>
+            <h3>📩 YouLearnHub Contact Form</h3>
             <p><strong>Name:</strong> ${name}</p>
             <p><strong>Email:</strong> ${email}</p>
             <p><strong>Message:</strong></p>
@@ -74,10 +95,26 @@ ${message}
 
       await transporter.sendMail(mailOptions);
 
+      console.log(`✅ Contact message sent by: ${name} <${email}>`);
       return res.json({ message: "Message delivered successfully. Thank you!" });
     } catch (err) {
-      console.error("Contact send error:", err);
-      return res.status(500).json({ message: "Failed to send message. Try again later." });
+      console.error("❌ Contact send error:", err.message);
+
+      // Handle specific SMTP errors
+      if (err.code === "EAUTH") {
+        return res
+          .status(500)
+          .json({ message: "Email authentication failed. Check SMTP credentials." });
+      }
+      if (err.code === "ENOTFOUND" || err.code === "ECONNECTION") {
+        return res
+          .status(500)
+          .json({ message: "Mail server connection failed. Try again later." });
+      }
+
+      return res
+        .status(500)
+        .json({ message: "Failed to send message. Please try again later." });
     }
   }
 );
