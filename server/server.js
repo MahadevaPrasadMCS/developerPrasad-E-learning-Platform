@@ -13,6 +13,8 @@ import { startQuizExpiryJob } from "./cron/quizExpiryJob.js";
 dotenv.config();
 const app = express();
 
+app.set("trust proxy", 1); // Trust first proxy for rate limiting behind proxies
+
 // ==================== Middleware ====================
 
 // ✅ Allowed frontend origins (local + deployed)
