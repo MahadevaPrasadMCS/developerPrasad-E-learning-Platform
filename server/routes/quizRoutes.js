@@ -8,12 +8,34 @@ import adminMiddleware from "../middleware/adminMiddleware.js";
 const router = express.Router();
 
 /* =========================================================
-   🧩 1️⃣ CREATE QUIZ (Admin only)
-   POST /api/quiz/create
+🧩 1️⃣ CREATE QUIZ (Admin only)
+POST /api/quiz/create
 ========================================================= */
 router.post("/create", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const quiz = new Quiz(req.body);
+    const { title, description, questions } = req.body;
+
+    if (!title || !questions || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ message: "Title and at least one question are required." });
+    }
+
+    // Validate question structure
+    for (const q of questions) {
+      if (!q.question || !Array.isArray(q.options) || q.options.length === 0) {
+        return res.status(400).json({ message: "Each question must have text and options." });
+      }
+      if (!q.correctAnswer) {
+        return res.status(400).json({ message: "Each question must have a correct answer." });
+      }
+    }
+
+    const quiz = new Quiz({
+      title,
+      description,
+      questions,
+      status: "draft",
+    });
+
     await quiz.save();
     res.status(201).json({ message: "✅ Quiz created successfully", quiz });
   } catch (err) {
@@ -23,12 +45,22 @@ router.post("/create", authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 /* =========================================================
-   📜 2️⃣ LIST ALL QUIZZES
-   GET /api/quiz/list
+📜 2️⃣ LIST ALL QUIZZES
+GET /api/quiz/list
 ========================================================= */
 router.get("/list", async (req, res) => {
   try {
+    const now = new Date();
     const quizzes = await Quiz.find().sort({ createdAt: -1 });
+
+    // Auto-mark expired quizzes
+    for (const quiz of quizzes) {
+      if (quiz.endTime && now > quiz.endTime && quiz.status === "published") {
+        quiz.status = "expired";
+        await quiz.save();
+      }
+    }
+
     res.json(quizzes);
   } catch (err) {
     console.error("Quiz list error:", err);
@@ -37,12 +69,15 @@ router.get("/list", async (req, res) => {
 });
 
 /* =========================================================
-   🗑️ 3️⃣ DELETE QUIZ (Admin only)
-   DELETE /api/quiz/:id
+🗑️ 3️⃣ DELETE QUIZ (Admin only)
+DELETE /api/quiz/:id
 ========================================================= */
 router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res.status(400).json({ message: "Invalid quiz ID" });
+
     await Quiz.findByIdAndDelete(id);
     res.json({ message: "🗑️ Quiz deleted successfully" });
   } catch (err) {
@@ -52,8 +87,8 @@ router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 /* =========================================================
-   🚀 4️⃣ PUBLISH QUIZ (Admin only)
-   PUT /api/quiz/publish/:id
+🚀 4️⃣ PUBLISH QUIZ (Admin only)
+PUT /api/quiz/publish/:id
 ========================================================= */
 router.put("/publish/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -61,7 +96,7 @@ router.put("/publish/:id", authMiddleware, adminMiddleware, async (req, res) => 
     const { startTime, endTime } = req.body;
 
     if (!startTime || !endTime) {
-      return res.status(400).json({ message: "Start and end times required." });
+      return res.status(400).json({ message: "Start and end times are required." });
     }
 
     const quiz = await Quiz.findByIdAndUpdate(
@@ -69,6 +104,8 @@ router.put("/publish/:id", authMiddleware, adminMiddleware, async (req, res) => 
       { startTime, endTime, status: "published" },
       { new: true }
     );
+
+    if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
     res.json({ message: "✅ Quiz published successfully", quiz });
   } catch (err) {
@@ -78,8 +115,8 @@ router.put("/publish/:id", authMiddleware, adminMiddleware, async (req, res) => 
 });
 
 /* =========================================================
-   ⏸️ 5️⃣ UNPUBLISH QUIZ
-   PUT /api/quiz/unpublish/:id
+⏸️ 5️⃣ UNPUBLISH QUIZ
+PUT /api/quiz/unpublish/:id
 ========================================================= */
 router.put("/unpublish/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -89,6 +126,9 @@ router.put("/unpublish/:id", authMiddleware, adminMiddleware, async (req, res) =
       { status: "draft", startTime: null, endTime: null },
       { new: true }
     );
+
+    if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+
     res.json({ message: "⚠️ Quiz unpublished", quiz });
   } catch (err) {
     console.error("Unpublish error:", err);
@@ -97,8 +137,8 @@ router.put("/unpublish/:id", authMiddleware, adminMiddleware, async (req, res) =
 });
 
 /* =========================================================
-   📊 6️⃣ QUIZ ANALYTICS (Admin only)
-   GET /api/quiz/:id/analytics
+📊 6️⃣ QUIZ ANALYTICS (Admin only)
+GET /api/quiz/:id/analytics
 ========================================================= */
 router.get("/:id/analytics", authMiddleware, adminMiddleware, async (req, res) => {
   try {
