@@ -23,7 +23,7 @@ const allowedOrigins = [
   "https://youlearnhub.com" // custom domain (optional)
 ];
 
-// ✅ CORS Configuration (clean + future-proof)
+// ✅ CORS Configuration (clean & Render-safe)
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -39,14 +39,11 @@ app.use(
   })
 );
 
-// ✅ Handle preflight OPTIONS requests globally
-app.options("*", cors());
-
-// ==================== Core Middlewares ====================
+// ✅ Core middlewares
 app.use(express.json());
 app.use(compression());
 
-// Ensure uploads folder exists
+// ✅ Ensure uploads folder exists
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
