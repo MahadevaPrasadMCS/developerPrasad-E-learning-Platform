@@ -8,6 +8,7 @@ import fs from "fs";
 import compression from "compression";
 import cron from "node-cron";
 import Quiz from "./models/Quiz.js";
+import { startQuizExpiryJob } from "./cron/quizExpiryJob.js";
 
 dotenv.config();
 const app = express();
@@ -22,23 +23,26 @@ const allowedOrigins = [
   "https://youlearnhub.com" // custom domain (optional)
 ];
 
-// ✅ CORS Configuration
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-  }
+// ✅ CORS Configuration (clean + future-proof)
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Auth-Role"],
+    credentials: true,
+  })
+);
 
-  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type,Authorization");
-  res.header("Access-Control-Allow-Credentials", "true");
+// ✅ Handle preflight OPTIONS requests globally
+app.options("*", cors());
 
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
-
+// ==================== Core Middlewares ====================
 app.use(express.json());
 app.use(compression());
 
@@ -84,7 +88,6 @@ import userRoutes from "./routes/userRoutes.js";
 import rewardRoutes from "./routes/rewardRoutes.js";
 import storeRoutes from "./routes/storeRoutes.js";
 import tutorialRoutes from "./routes/youtubeRoutes.js";
-import { startQuizExpiryJob } from "./cron/quizExpiryJob.js";
 import contactRoutes from "./routes/contactRoutes.js";
 
 // ==================== Use Routes ====================
