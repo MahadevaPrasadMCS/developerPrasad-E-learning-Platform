@@ -59,6 +59,26 @@ router.get("/list", async (req, res) => {
 });
 
 /* =========================================================
+🔥 5️⃣ GET ACTIVE QUIZZES (Public)
+========================================================= */
+router.get("/active", async (req, res) => {
+  try {
+    const now = new Date();
+    const quizzes = await Quiz.find({
+      status: "published",
+      startTime: { $lte: now },
+      endTime: { $gte: now },
+    });
+    if (!quizzes.length)
+      return res.status(404).json({ message: "No active quiz right now" });
+    res.json(quizzes);
+  } catch (err) {
+    console.error("Active quiz fetch error:", err);
+    res.status(500).json({ message: "Failed to load active quiz" });
+  }
+});
+
+/* =========================================================
 🔍 3️⃣ GET QUIZ BY ID
 ========================================================= */
 router.get("/:id", authMiddleware, adminMiddleware, async (req, res) => {
@@ -99,25 +119,6 @@ router.put("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-/* =========================================================
-🔥 5️⃣ GET ACTIVE QUIZZES (Public)
-========================================================= */
-router.get("/active", async (req, res) => {
-  try {
-    const now = new Date();
-    const quizzes = await Quiz.find({
-      status: "published",
-      startTime: { $lte: now },
-      endTime: { $gte: now },
-    });
-    if (!quizzes.length)
-      return res.status(404).json({ message: "No active quiz right now" });
-    res.json(quizzes);
-  } catch (err) {
-    console.error("Active quiz fetch error:", err);
-    res.status(500).json({ message: "Failed to load active quiz" });
-  }
-});
 
 /* =========================================================
 🧾 6️⃣ REGISTER FOR QUIZ
