@@ -1,12 +1,34 @@
 import mongoose from "mongoose";
 
-const announcementSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  message: { type: String, required: true },
-  weekNumber: { type: Number, required: true },
-  winners: [{ name: String, coins: Number }], // top 3 users
-  createdAt: { type: Date, default: Date.now },
-});
+const announcementSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    links: [
+      {
+        type: String,
+        trim: true,
+        validate: {
+          validator: (v) => !v || /^https?:\/\/.+/.test(v),
+          message: "Invalid URL format",
+        },
+      },
+    ],
+    specialThings: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+  },
+  { timestamps: true }
+);
 
-const Announcement = mongoose.model("Announcement", announcementSchema);
-export default Announcement;
+export default mongoose.model("Announcement", announcementSchema);

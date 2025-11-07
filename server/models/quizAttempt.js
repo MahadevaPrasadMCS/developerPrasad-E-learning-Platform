@@ -1,14 +1,14 @@
 import mongoose from "mongoose";
 
-const attemptSchema = new mongoose.Schema({
-  quiz: { type: mongoose.Schema.Types.ObjectId, ref: "Quiz", required: true },
-  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  answers: [{ type: Number }], // index of chosen option per question
-  score: { type: Number, required: true },
-  earnedCoins: { type: Number, required: true },
-  createdAt: { type: Date, default: Date.now },
-});
+const quizAttemptSchema = new mongoose.Schema(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    userName: { type: String },
+    quizId: { type: mongoose.Schema.Types.ObjectId, ref: "Quiz", required: true },
+    score: { type: Number, required: true },
+  },
+  { timestamps: true }
+);
 
-const QuizAttempt = mongoose.model("QuizAttempt", attemptSchema);
-
+const QuizAttempt = mongoose.model("QuizAttempt", quizAttemptSchema);
 export default QuizAttempt;
