@@ -1,89 +1,99 @@
-// client/src/pages/admin/ManageQuiz.jsx
 import React, { useState, useEffect } from "react";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
+import {
+  Loader2,
+  Plus,
+  Trash,
+  Edit,
+  Clock,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 
-function PublishControls({ quiz, onSuccess }) {
+/* ============================================================
+   QUIZ PUBLISHING CONTROLS
+============================================================ */
+function PublishControls({ quiz, onSuccess, showToast }) {
   const [isScheduling, setIsScheduling] = useState(false);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [loading, setLoading] = useState(false);
+  const adminHeaders = { "X-Auth-Role": "admin" };
 
-  const handlePublishNow = async () => {
+  const publish = async (data, successMsg) => {
     try {
       setLoading(true);
-      await api.put(`/quiz/publish/${quiz._id}`, {
-        startTime: new Date().toISOString(),
-        endTime: null,
-      });
+      await api.put(`/quiz/publish/${quiz._id}`, data, { headers: adminHeaders });
+      showToast(successMsg, "success");
       onSuccess();
     } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || "Publish failed");
+      console.error("Publish failed:", err);
+      showToast(err.response?.data?.message || "Failed to publish quiz.", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSchedule = async () => {
+  const handlePublishNow = () => {
+    const start = new Date();
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    publish(
+      { startTime: start.toISOString(), endTime: end.toISOString() },
+      "✅ Quiz published successfully!"
+    );
+  };
+
+  const handleSchedule = () => {
     if (!startTime || !endTime)
-      return alert("Please set both start and end times");
+      return showToast("Please set both start and end times.", "error");
     if (new Date(startTime) >= new Date(endTime))
-      return alert("End time must be after start time");
-    try {
-      setLoading(true);
-      await api.put(`/quiz/publish/${quiz._id}`, { startTime, endTime });
-      onSuccess();
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || "Scheduling failed");
-    } finally {
-      setLoading(false);
-    }
+      return showToast("End time must be after start time.", "error");
+    publish({ startTime, endTime }, "✅ Quiz scheduled successfully!");
   };
 
   return (
-    <div className="mt-2 space-y-2">
+    <div className="mt-2">
       {!isScheduling ? (
-        <>
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={handlePublishNow}
             disabled={loading}
-            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md"
+            className="flex items-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition"
           >
-            {loading ? "Publishing..." : "Publish Now"}
+            <CheckCircle2 size={14} /> {loading ? "Publishing..." : "Publish Now"}
           </button>
           <button
             onClick={() => setIsScheduling(true)}
-            className="ml-2 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-md"
+            className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition"
           >
-            Schedule Publish
+            <Clock size={14} /> Schedule
           </button>
-        </>
+        </div>
       ) : (
         <div className="flex flex-wrap gap-2 items-center">
           <input
             type="datetime-local"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
-            className="p-2 border rounded"
+            className="p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-teal-500"
           />
           <input
             type="datetime-local"
             value={endTime}
             onChange={(e) => setEndTime(e.target.value)}
-            className="p-2 border rounded"
+            className="p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-teal-500"
           />
           <button
             onClick={handleSchedule}
             disabled={loading}
-            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+            className="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-md"
           >
             {loading ? "Scheduling..." : "Confirm"}
           </button>
           <button
             onClick={() => setIsScheduling(false)}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded-md"
+            className="px-3 py-1 bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md"
           >
             Cancel
           </button>
@@ -93,382 +103,300 @@ function PublishControls({ quiz, onSuccess }) {
   );
 }
 
+/* ============================================================
+   MANAGE QUIZZES PAGE
+============================================================ */
 function ManageQuiz() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [quizzes, setQuizzes] = useState([]);
-  const [message, setMessage] = useState("");
+  const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [editingQuiz, setEditingQuiz] = useState(null);
 
-  // Form state
   const [form, setForm] = useState({
     title: "",
     description: "",
     questions: [
-      {
-        question: "",
-        options: ["", "", "", ""],
-        correctAnswerIndex: null, // store index of correct option
-        coins: 10,
-      },
+      { question: "", options: ["", "", "", ""], correctAnswerIndex: null, coins: 10 },
     ],
   });
 
-  useEffect(() => {
-    fetchQuizzes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const adminHeaders = { "X-Auth-Role": "admin" };
+
+  const showToast = (msg, type = "info") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const fetchQuizzes = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/quiz/list", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get("/quiz/list", { headers: adminHeaders });
       setQuizzes(res.data || []);
     } catch (err) {
-      console.error(err);
-      setMessage("❌ Failed to load quizzes.");
+      console.error("Fetch quizzes failed:", err);
+      showToast("❌ Failed to load quizzes.", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ---------- Form helpers (questions & options) ---------- */
-  const handleAddQuestion = () => {
-    setForm((prev) => ({
-      ...prev,
-      questions: [
-        ...prev.questions,
-        { question: "", options: ["", "", "", ""], correctAnswerIndex: null, coins: 10 },
-      ],
-    }));
-  };
+  useEffect(() => {
+    fetchQuizzes();
+  }, []);
 
-  const handleRemoveQuestion = (qIdx) => {
-    setForm((prev) => {
-      const questions = prev.questions.filter((_, i) => i !== qIdx);
-      return { ...prev, questions: questions.length ? questions : [
-        { question: "", options: ["", "", "", ""], correctAnswerIndex: null, coins: 10 }
-      ] };
-    });
-  };
-
-  const handleQuestionChange = (qIdx, field, value) => {
-    setForm((prev) => {
-      const questions = [...prev.questions];
-      if (field === "question" || field === "coins") {
-        questions[qIdx][field] = value;
-      } else if (field.startsWith("option-")) {
-        const optIdx = Number(field.split("-")[1]);
-        questions[qIdx].options[optIdx] = value;
-        // If editing an option that was marked correct and text becomes empty, clear correctAnswerIndex
-        if (questions[qIdx].correctAnswerIndex === optIdx && !value) {
-          questions[qIdx].correctAnswerIndex = null;
-        }
-      } else if (field === "correctIndex") {
-        questions[qIdx].correctAnswerIndex = value === null ? null : Number(value);
-      }
-      return { ...prev, questions };
-    });
-  };
-
-  const handleAddOption = (qIdx) => {
-    setForm((prev) => {
-      const questions = [...prev.questions];
-      questions[qIdx].options.push("");
-      return { ...prev, questions };
-    });
-  };
-
-  const handleRemoveOption = (qIdx, optIdx) => {
-    setForm((prev) => {
-      const questions = [...prev.questions];
-      const opts = questions[qIdx].options.filter((_, i) => i !== optIdx);
-      // adjust correctAnswerIndex if necessary
-      if (questions[qIdx].correctAnswerIndex !== null) {
-        if (questions[qIdx].correctAnswerIndex === optIdx) {
-          questions[qIdx].correctAnswerIndex = null;
-        } else if (questions[qIdx].correctAnswerIndex > optIdx) {
-          questions[qIdx].correctAnswerIndex -= 1;
-        }
-      }
-      questions[qIdx].options = opts.length ? opts : [""];
-      return { ...prev, questions };
-    });
-  };
-
-  /* ---------- Create quiz ---------- */
   const validateForm = () => {
-    if (!form.title.trim()) {
-      setMessage("Title is required.");
-      return false;
-    }
-    if (!form.questions.length) {
-      setMessage("Add at least one question.");
-      return false;
-    }
-    for (let i = 0; i < form.questions.length; i++) {
-      const q = form.questions[i];
-      if (!q.question.trim()) {
-        setMessage(`Question ${i + 1} text is required.`);
-        return false;
-      }
-      if (!q.options.some((o) => o && o.trim())) {
-        setMessage(`Question ${i + 1} must have at least one non-empty option.`);
-        return false;
-      }
-      if (q.correctAnswerIndex === null || q.options[q.correctAnswerIndex] === "" || q.options[q.correctAnswerIndex] == null) {
-        setMessage(`Question ${i + 1} must have a valid correct answer selected.`);
-        return false;
-      }
-      if (isNaN(Number(q.coins)) || Number(q.coins) < 0) {
-        setMessage(`Question ${i + 1} coins must be a non-negative number.`);
-        return false;
-      }
+    if (!form.title.trim()) return showToast("Title is required.", "error");
+    for (const q of form.questions) {
+      if (!q.question.trim()) return showToast("Each question needs text.", "error");
+      if (!q.options.some((o) => o.trim()))
+        return showToast("Each question needs at least one option.", "error");
+      if (q.correctAnswerIndex === null)
+        return showToast("Please select a correct answer.", "error");
     }
     return true;
   };
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    setMessage("");
     if (!validateForm()) return;
     try {
-      // Transform to backend shape: correctAnswer as text
       const payload = {
         title: form.title.trim(),
-        description: form.description?.trim() || "",
+        description: form.description.trim(),
         questions: form.questions.map((q) => ({
           question: q.question.trim(),
-          options: q.options.map((o) => (o ? String(o).trim() : "")),
-          correctAnswer: q.correctAnswerIndex !== null ? String(q.options[q.correctAnswerIndex]).trim() : "",
-          coins: Number(q.coins) || 0,
+          options: q.options.map((o) => o.trim()),
+          correctAnswer:
+            q.correctAnswerIndex !== null ? q.options[q.correctAnswerIndex] : "",
+          coins: Number(q.coins),
         })),
       };
-
-      await api.post("/quiz/create", payload, { headers: { Authorization: `Bearer ${token}` } });
-      setMessage("✅ Quiz created successfully (Draft).");
-      // reset form
+      await api.post("/quiz/create", payload, { headers: adminHeaders });
+      showToast("✅ Quiz created successfully (Draft).", "success");
       setForm({
         title: "",
         description: "",
-        questions: [
-          { question: "", options: ["", "", "", ""], correctAnswerIndex: null, coins: 10 },
-        ],
+        questions: [{ question: "", options: ["", "", "", ""], correctAnswerIndex: null, coins: 10 }],
       });
       fetchQuizzes();
     } catch (err) {
-      console.error(err);
-      setMessage(err.response?.data?.message || "❌ Quiz creation failed.");
-    }
-  };
-
-  /* ---------- Admin actions ---------- */
-  const handleUnpublish = async (id) => {
-    if (!window.confirm("Unpublish this quiz?")) return;
-    try {
-      await api.put(`/quiz/unpublish/${id}`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      setMessage("⚠️ Quiz unpublished.");
-      fetchQuizzes();
-    } catch (err) {
-      console.error(err);
-      setMessage("❌ Unpublish failed.");
+      console.error("Quiz creation failed:", err);
+      showToast("❌ Quiz creation failed.", "error");
     }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this quiz permanently?")) return;
     try {
-      await api.delete(`/quiz/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setMessage("🗑️ Quiz deleted.");
+      await api.delete(`/quiz/${id}`, { headers: adminHeaders });
+      showToast("🗑️ Quiz deleted successfully.", "success");
       fetchQuizzes();
-    } catch (err) {
-      console.error(err);
-      setMessage("❌ Delete failed.");
+    } catch {
+      showToast("❌ Failed to delete quiz.", "error");
+    }
+  };
+
+  const handleUnpublish = async (id) => {
+    if (!window.confirm("Unpublish this quiz?")) return;
+    try {
+      await api.put(`/quiz/unpublish/${id}`, {}, { headers: adminHeaders });
+      showToast("⚠️ Quiz unpublished.", "info");
+      fetchQuizzes();
+    } catch {
+      showToast("❌ Unpublish failed.", "error");
     }
   };
 
   if (user?.role !== "admin")
-    return <div className="text-center text-red-500 mt-10">Access denied.</div>;
+    return <p className="text-center text-red-500 mt-10">Access denied — Admins only.</p>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-10 px-6">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-10 px-6">
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed top-5 right-5 px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-fade-in z-50 ${
+            toast.type === "success"
+              ? "bg-green-600 text-white"
+              : toast.type === "error"
+              ? "bg-red-600 text-white"
+              : "bg-yellow-500 text-black"
+          }`}
+        >
+          {toast.msg}
+        </div>
+      )}
+
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-4xl font-extrabold text-center text-teal-600 mb-6">
+        <h1 className="text-4xl font-extrabold text-center text-teal-600 dark:text-teal-400 mb-10">
           🧩 Manage Quizzes
         </h1>
 
-        {/* Create form */}
-        <form onSubmit={handleCreate} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8">
-          <h2 className="text-2xl font-semibold mb-4">Create New Quiz (Draft)</h2>
+        {/* CREATE QUIZ */}
+        <form
+          onSubmit={handleCreate}
+          className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-lg p-8 mb-10 hover:shadow-2xl transition-all"
+        >
+          <h2 className="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-100 flex items-center gap-2">
+            <Plus size={18} /> Create New Quiz (Draft)
+          </h2>
 
           <input
             value={form.title}
-            onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
             placeholder="Quiz Title"
-            className="w-full p-3 mb-3 border rounded-lg"
-            required
+            className="w-full p-3 mb-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-teal-500"
           />
-
           <textarea
             value={form.description}
-            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="Description (optional)"
-            className="w-full p-3 mb-5 border rounded-lg"
-            rows={2}
+            className="w-full p-3 mb-5 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-teal-500"
           />
 
-          {/* Questions builder */}
-          <div className="space-y-4">
-            {form.questions.map((q, qi) => (
-              <div key={qi} className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-700/50">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-semibold">Question {qi + 1}</h3>
-                  <div className="flex gap-2">
+          {form.questions.map((q, qi) => (
+            <div
+              key={qi}
+              className="p-4 mb-4 border rounded-lg bg-gray-50 dark:bg-gray-700/50 dark:border-gray-600 transition-all"
+            >
+              <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                Question {qi + 1}
+              </h3>
+              <input
+                value={q.question}
+                onChange={(e) => {
+                  const updated = [...form.questions];
+                  updated[qi].question = e.target.value;
+                  setForm({ ...form, questions: updated });
+                }}
+                placeholder="Enter question"
+                className="w-full p-2 mb-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-teal-500"
+              />
+              {q.options.map((opt, oi) => (
+                <div key={oi} className="flex items-center gap-2 mb-2">
+                  <input
+                    value={opt}
+                    onChange={(e) => {
+                      const updated = [...form.questions];
+                      updated[qi].options[oi] = e.target.value;
+                      setForm({ ...form, questions: updated });
+                    }}
+                    placeholder={`Option ${oi + 1}`}
+                    className="flex-1 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-teal-500"
+                  />
+                  <input
+                    type="radio"
+                    name={`correct-${qi}`}
+                    checked={q.correctAnswerIndex === oi}
+                    onChange={() => {
+                      const updated = [...form.questions];
+                      updated[qi].correctAnswerIndex = oi;
+                      setForm({ ...form, questions: updated });
+                    }}
+                    className="accent-teal-600"
+                  />
+                </div>
+              ))}
+            </div>
+          ))}
+
+          <button
+            type="submit"
+            className="mt-3 px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition"
+          >
+            Create Quiz
+          </button>
+        </form>
+
+        {/* QUIZ LIST */}
+        {loading ? (
+          <div className="flex justify-center items-center gap-3 text-gray-600 dark:text-gray-400">
+            <Loader2 className="animate-spin w-5 h-5" /> Loading quizzes...
+          </div>
+        ) : (
+          quizzes.map((q) => {
+            const now = new Date();
+            const start = q.startTime ? new Date(q.startTime) : null;
+            const end = q.endTime ? new Date(q.endTime) : null;
+
+            let statusLabel = "Draft";
+            let badgeStyle =
+              "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300";
+
+            if (end && now > end) {
+              statusLabel = "Expired";
+              badgeStyle =
+                "bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300";
+            } else if (start && now < start) {
+              statusLabel = "Scheduled";
+              badgeStyle =
+                "bg-blue-100 text-blue-700 dark:bg-blue-700/30 dark:text-blue-300";
+            } else if (start && now >= start && end && now <= end) {
+              statusLabel = "Live";
+              badgeStyle =
+                "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300";
+            }
+
+            return (
+              <div
+                key={q._id}
+                className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-xl p-6 mb-6 shadow-lg hover:shadow-2xl transition-all border border-gray-200 dark:border-gray-700 animate-fade-in"
+              >
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                      {q.title}
+                      <span
+                        className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badgeStyle}`}
+                      >
+                        {statusLabel}
+                      </span>
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-300 mt-1">
+                      {q.description || "No description provided."}
+                    </p>
+
+                    {start && end && (
+                      <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        <p>
+                          <span className="font-medium">Start:</span> {start.toLocaleString()}
+                        </p>
+                        <p>
+                          <span className="font-medium">End:</span> {end.toLocaleString()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
                     <button
-                      type="button"
-                      onClick={() => handleAddOption(qi)}
-                      className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm"
+                      onClick={() => setEditingQuiz(q)}
+                      className="flex items-center gap-1 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition"
                     >
-                      + Option
+                      <Edit size={14} /> Edit
                     </button>
+                    {q.status === "draft" ? (
+                      <PublishControls quiz={q} onSuccess={fetchQuizzes} showToast={showToast} />
+                    ) : (
+                      <button
+                        onClick={() => handleUnpublish(q._id)}
+                        className="flex items-center gap-1 px-4 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md text-sm transition"
+                      >
+                        <XCircle size={14} /> Unpublish
+                      </button>
+                    )}
                     <button
-                      type="button"
-                      onClick={() => handleRemoveQuestion(qi)}
-                      className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm"
+                      onClick={() => handleDelete(q._id)}
+                      className="flex items-center gap-1 px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm transition"
                     >
-                      Remove
+                      <Trash size={14} /> Delete
                     </button>
                   </div>
                 </div>
-
-                <textarea
-                  value={q.question}
-                  onChange={(e) => handleQuestionChange(qi, "question", e.target.value)}
-                  placeholder="Question text"
-                  className="w-full p-2 mb-3 border rounded"
-                  rows={2}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                  {q.options.map((opt, oi) => (
-                    <div key={oi} className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name={`correct-${qi}`}
-                        checked={q.correctAnswerIndex === oi}
-                        onChange={() => handleQuestionChange(qi, "correctIndex", oi)}
-                        className="w-4 h-4"
-                      />
-                      <input
-                        value={opt}
-                        onChange={(e) => handleQuestionChange(qi, `option-${oi}`, e.target.value)}
-                        placeholder={`Option ${oi + 1}`}
-                        className="flex-1 p-2 border rounded"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveOption(qi, oi)}
-                        className="px-2 py-1 bg-red-100 hover:bg-red-200 rounded text-sm"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-3 items-center">
-                  <label className="text-sm">Coins:</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={q.coins}
-                    onChange={(e) => handleQuestionChange(qi, "coins", e.target.value)}
-                    className="w-24 p-2 border rounded"
-                  />
-                </div>
               </div>
-            ))}
-          </div>
-
-          <div className="flex gap-3 mt-4">
-            <button
-              type="button"
-              onClick={handleAddQuestion}
-              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded"
-            >
-              ➕ Add Question
-            </button>
-
-            <button
-              type="submit"
-              className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg"
-            >
-              💾 Create Quiz
-            </button>
-
-            <div className="ml-auto text-sm text-gray-500 self-center">
-              {form.questions.length} question(s)
-            </div>
-          </div>
-        </form>
-
-        {message && (
-          <p className="text-center mb-6 text-teal-600 font-medium">{message}</p>
-        )}
-
-        {/* Existing Quizzes */}
-        <h2 className="text-2xl font-semibold mb-4 text-center">Existing Quizzes</h2>
-
-        {loading ? (
-          <p className="text-center">Loading quizzes...</p>
-        ) : quizzes.length === 0 ? (
-          <p className="text-center">No quizzes created yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {quizzes.map((q) => (
-              <div
-                key={q._id}
-                className="flex justify-between flex-wrap bg-white dark:bg-gray-800 rounded-xl shadow-md p-5 border-l-4"
-                style={{ borderColor: q.status === "published" ? "#10b981" : "#facc15" }}
-              >
-                <div>
-                  <h3 className="font-semibold">{q.title}</h3>
-                  <p className="text-sm text-gray-500">{q.description}</p>
-                  {q.status === "published" && q.endTime && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      Active until {new Date(q.endTime).toLocaleString()}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-2">
-                  {q.status === "draft" ? (
-                    <PublishControls
-                      quiz={q}
-                      onSuccess={() => {
-                        setMessage("✅ Quiz published successfully.");
-                        fetchQuizzes();
-                      }}
-                    />
-                  ) : (
-                    <button
-                      onClick={() => handleUnpublish(q._id)}
-                      className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md"
-                    >
-                      Unpublish
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleDelete(q._id)}
-                    className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+            );
+          })
         )}
       </div>
     </div>
