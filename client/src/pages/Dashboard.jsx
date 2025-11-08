@@ -36,7 +36,7 @@ function Dashboard() {
     } finally {
       setRefreshing(false);
     }
-  }, [user, setUser, handleAuthError]);
+  }, [setUser, handleAuthError]);
 
   useEffect(() => {
     fetchUserData();
