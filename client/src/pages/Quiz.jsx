@@ -5,7 +5,6 @@ import { useAuth } from "../context/AuthContext";
 function Quiz() {
   const { user, token } = useAuth();
 
-  const [activeQuizzes, setActiveQuizzes] = useState([]);
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [availableQuizzes, setAvailableQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,14 +17,12 @@ function Quiz() {
   const [autoSubmitted, setAutoSubmitted] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Toast utility
+  // ✅ Toast utility
   const showToast = (msg, type = "info") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  const isLocallySubmitted = (quizId) =>
-    !!localStorage.getItem(`submittedQuiz_${quizId}`);
   const markLocallySubmitted = (quizId) =>
     localStorage.setItem(`submittedQuiz_${quizId}`, "1");
 
@@ -92,7 +89,7 @@ function Quiz() {
     }
   }, [activeQuiz, enterFullscreen, registered, submitted]);
 
-  // Register user (auto fullscreen)
+  // ✅ Register user
   const handleRegister = async () => {
     if (!token) return showToast("⚠️ Login to register first.", "error");
     if (!activeQuiz) return showToast("❌ No active quiz available.", "error");
@@ -110,6 +107,7 @@ function Quiz() {
     }
   };
 
+  // ✅ Submit Quiz
   const handleSubmit = useCallback(
     async (auto = false) => {
       if (autoSubmitted || !activeQuiz || !token) return;
@@ -158,7 +156,7 @@ function Quiz() {
     return () => clearInterval(timer);
   }, [timeLeft, index, registered, submitted, activeQuiz, next, handleSubmit]);
 
-  // Visibility and fullscreen protection
+  // Visibility + fullscreen protection
   useEffect(() => {
     if (!registered || submitted || !activeQuiz) return;
     let hideTimer;
@@ -214,7 +212,7 @@ function Quiz() {
       </div>
     );
 
-  // ✅ Multiple quiz selection screen
+  // Multiple quiz selection
   if (availableQuizzes.length > 1 && !activeQuiz && !submitted)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-center px-6">
