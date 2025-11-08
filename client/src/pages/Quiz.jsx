@@ -15,11 +15,13 @@ function Quiz() {
   const [result, setResult] = useState(null);
   const [autoSubmitted, setAutoSubmitted] = useState(false);
 
-  // 🔹 Local storage helpers
-  const isLocallySubmitted = (quizId) => !!localStorage.getItem(`submittedQuiz_${quizId}`);
-  const markLocallySubmitted = (quizId) => localStorage.setItem(`submittedQuiz_${quizId}`, "1");
+  // Local storage helpers
+  const isLocallySubmitted = (quizId) =>
+    !!localStorage.getItem(`submittedQuiz_${quizId}`);
+  const markLocallySubmitted = (quizId) =>
+    localStorage.setItem(`submittedQuiz_${quizId}`, "1");
 
-  // 🔹 Fetch active quiz and user attempts
+  // Fetch active quiz and user attempts
   useEffect(() => {
     let ignore = false;
     (async () => {
@@ -39,17 +41,21 @@ function Quiz() {
             chosenQuiz =
               activeQuizzes.find(
                 (q) =>
-                  !attempts.some((a) => a.quizId && String(a.quizId._id) === String(q._id))
+                  !attempts.some(
+                    (a) => a.quizId && String(a.quizId._id) === String(q._id)
+                  )
               ) || activeQuizzes[0];
 
             const attempt = attempts.find(
-              (a) => a.quizId && String(a.quizId._id) === String(chosenQuiz._id)
+              (a) =>
+                a.quizId && String(a.quizId._id) === String(chosenQuiz._id)
             );
 
             if (attempt) {
               setResult({
                 score: attempt.score,
-                totalQuestions: attempt.answers?.length || chosenQuiz.questions.length,
+                totalQuestions:
+                  attempt.answers?.length || chosenQuiz.questions.length,
                 earnedCoins: attempt.earnedCoins || 0,
               });
               setSubmitted(true);
@@ -82,7 +88,7 @@ function Quiz() {
     return () => (ignore = true);
   }, [user, token]);
 
-  // 🔹 Reset index & timer when new quiz loads
+  // Reset index & timer when quiz changes
   useEffect(() => {
     setIndex(0);
     if (activeQuiz && !submitted) {
@@ -90,14 +96,6 @@ function Quiz() {
       setTimeLeft(30);
     }
   }, [activeQuiz, submitted]);
-
-  // ✅ Stable “next question” handler
-  const next = useCallback(() => {
-    if (activeQuiz && index < activeQuiz.questions.length - 1) {
-      setIndex((i) => i + 1);
-      setTimeLeft(30);
-    } else handleSubmit();
-  }, [activeQuiz, index]);
 
   // ✅ Stable “submit quiz” handler
   const handleSubmit = useCallback(
@@ -133,7 +131,15 @@ function Quiz() {
     [token, activeQuiz, answers, autoSubmitted]
   );
 
-  // 🔹 Countdown timer (now dependency-safe)
+  // ✅ Stable “next question” handler (added handleSubmit dependency)
+  const next = useCallback(() => {
+    if (activeQuiz && index < activeQuiz.questions.length - 1) {
+      setIndex((i) => i + 1);
+      setTimeLeft(30);
+    } else handleSubmit();
+  }, [activeQuiz, index, handleSubmit]);
+
+  // Countdown timer
   useEffect(() => {
     if (!registered || submitted || !activeQuiz) return;
     if (timeLeft <= 0) {
@@ -145,15 +151,17 @@ function Quiz() {
     return () => clearInterval(timer);
   }, [timeLeft, index, registered, submitted, activeQuiz, next, handleSubmit]);
 
-  // 🔹 Register for quiz
+  // Register for quiz
   const handleRegister = async () => {
     if (!token) return alert("Login to register first.");
     if (!activeQuiz) return alert("No active quiz available.");
 
     try {
-      await api.post(`/quiz/register/${activeQuiz._id}`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.post(
+        `/quiz/register/${activeQuiz._id}`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       setRegistered(true);
       try {
         await document.documentElement.requestFullscreen();
@@ -166,7 +174,7 @@ function Quiz() {
     }
   };
 
-  // 🔹 Focus + fullscreen protection
+  // Focus + fullscreen protection
   useEffect(() => {
     if (!registered || submitted || !activeQuiz) return;
 
@@ -180,7 +188,9 @@ function Quiz() {
 
     const handleFullscreenExit = async () => {
       if (!document.fullscreenElement && !autoSubmitted && !submitted) {
-        const reenter = window.confirm("You exited fullscreen. Re-enter to continue?");
+        const reenter = window.confirm(
+          "You exited fullscreen. Re-enter to continue?"
+        );
         if (reenter) {
           try {
             await document.documentElement.requestFullscreen();
@@ -203,12 +213,13 @@ function Quiz() {
     };
   }, [registered, submitted, activeQuiz, handleSubmit, autoSubmitted]);
 
-  // 🔹 Exam mode protections
+  // Exam mode protections
   useEffect(() => {
     if (!registered || submitted) return;
     const disableContext = (e) => e.preventDefault();
     const blockKeys = (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || e.key === "F12") e.preventDefault();
+      if (e.ctrlKey || e.metaKey || e.altKey || e.key === "F12")
+        e.preventDefault();
     };
     document.addEventListener("contextmenu", disableContext);
     window.addEventListener("keydown", blockKeys);
@@ -224,24 +235,38 @@ function Quiz() {
     setAnswers(updated);
   };
 
-  // ---------------- UI ---------------- //
+  // UI
 
   if (loading)
-    return <div className="min-h-screen flex items-center justify-center text-gray-600">Loading quiz...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-600">
+        Loading quiz...
+      </div>
+    );
 
   if (!activeQuiz)
-    return <div className="min-h-screen flex items-center justify-center text-gray-500">No active quiz right now.</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-500">
+        No active quiz right now.
+      </div>
+    );
 
   if (submitted && result)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
         <div className="bg-white/80 dark:bg-gray-800 rounded-2xl shadow-xl p-8 max-w-md w-full animate-fade-in">
-          <h2 className="text-3xl font-bold text-teal-600 mb-3">Your Result 🎯</h2>
+          <h2 className="text-3xl font-bold text-teal-600 mb-3">
+            Your Result 🎯
+          </h2>
           <p className="text-gray-700 dark:text-gray-200">
             Score: {result.score} / {result.totalQuestions}
           </p>
-          <p className="text-gray-700 dark:text-gray-200">Coins Earned: {result.earnedCoins}</p>
-          <p className="text-sm text-gray-500 mt-3">New balance: {result.newBalance ?? "—"} 🪙</p>
+          <p className="text-gray-700 dark:text-gray-200">
+            Coins Earned: {result.earnedCoins}
+          </p>
+          <p className="text-sm text-gray-500 mt-3">
+            New balance: {result.newBalance ?? "—"} 🪙
+          </p>
         </div>
       </div>
     );
@@ -249,8 +274,12 @@ function Quiz() {
   if (!registered)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        <h2 className="text-3xl font-bold text-teal-600 mb-3">{activeQuiz.title}</h2>
-        <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-md">{activeQuiz.description}</p>
+        <h2 className="text-3xl font-bold text-teal-600 mb-3">
+          {activeQuiz.title}
+        </h2>
+        <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-md">
+          {activeQuiz.description}
+        </p>
         <button
           onClick={handleRegister}
           className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-transform transform hover:-translate-y-1"
@@ -268,8 +297,16 @@ function Quiz() {
     <div className="min-h-screen flex items-center justify-center py-8 px-4 bg-gradient-to-br from-gray-100 to-teal-50 dark:from-gray-900 dark:to-gray-800 transition-all duration-300">
       <div className="w-full max-w-3xl bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 animate-fade-in">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-teal-600 dark:text-teal-400">{activeQuiz.title}</h2>
-          <div className={`font-semibold ${timeLeft <= 10 ? "text-red-500 animate-pulse" : "text-gray-700 dark:text-gray-200"}`}>
+          <h2 className="text-xl font-bold text-teal-600 dark:text-teal-400">
+            {activeQuiz.title}
+          </h2>
+          <div
+            className={`font-semibold ${
+              timeLeft <= 10
+                ? "text-red-500 animate-pulse"
+                : "text-gray-700 dark:text-gray-200"
+            }`}
+          >
             ⏱️ {timeLeft}s
           </div>
         </div>
@@ -288,7 +325,9 @@ function Quiz() {
           ></div>
         </div>
 
-        <h3 className="text-lg font-semibold mb-4 dark:text-gray-100">{question.question}</h3>
+        <h3 className="text-lg font-semibold mb-4 dark:text-gray-100">
+          {question.question}
+        </h3>
 
         <div className="space-y-3">
           {question.options.map((opt, i) => (

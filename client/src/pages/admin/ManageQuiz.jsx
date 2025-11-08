@@ -1,16 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
-import {
-  Loader2,
-  Plus,
-  Trash,
-  Edit,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  X,
-} from "lucide-react";
+import { Trash, Edit, Clock, CheckCircle2, X } from "lucide-react";
+
 
 /* ============================================================
    QUIZ PUBLISHING CONTROLS (Reusable Component)

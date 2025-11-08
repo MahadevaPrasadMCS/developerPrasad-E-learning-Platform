@@ -5,7 +5,6 @@ import { useAuth } from "../context/AuthContext";
 
 function Register() {
   const navigate = useNavigate();
-  const { login } = useAuth(); // kept for future use, no harm in retaining
 
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);

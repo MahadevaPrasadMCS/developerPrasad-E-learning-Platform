@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 function Store() {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const navigate = useNavigate();
 
   const [wallet, setWallet] = useState(0);
