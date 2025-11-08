@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import api from "../../utils/api";
 import {
   LineChart,
@@ -24,15 +24,18 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
 
-  const adminHeaders = { "X-Auth-Role": "admin" };
+  // ✅ Memoized headers (prevents dependency warnings)
+  const adminHeaders = useMemo(() => ({ "X-Auth-Role": "admin" }), []);
   const COLORS = ["#14b8a6", "#0d9488", "#2dd4bf", "#5eead4", "#99f6e4"];
 
+  // Toast system
   const showToast = (msg, type = "info") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  const fetchStats = async () => {
+  // ✅ Memoized fetchStats to prevent re-creation
+  const fetchStats = useCallback(async () => {
     try {
       const [users, quizzes, coins, actives] = await Promise.all([
         api.get("/admin/stats/users-growth", { headers: adminHeaders }),
@@ -40,6 +43,7 @@ function AdminDashboard() {
         api.get("/admin/stats/coins", { headers: adminHeaders }),
         api.get("/admin/stats/active-users", { headers: adminHeaders }),
       ]);
+
       setUserGrowth(users.data);
       setQuizParticipation(quizzes.data);
       setCoinStats(coins.data);
@@ -51,11 +55,11 @@ function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [adminHeaders]);
 
   useEffect(() => {
     fetchStats();
-  }, []);
+  }, [fetchStats]);
 
   if (loading)
     return (

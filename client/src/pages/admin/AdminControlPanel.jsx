@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -7,7 +7,6 @@ import {
   Ban,
   Wrench,
   Loader2,
-  ShieldAlert,
 } from "lucide-react";
 
 function AdminControlPanel() {
@@ -18,7 +17,8 @@ function AdminControlPanel() {
   const [toast, setToast] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const adminHeaders = { "X-Auth-Role": "admin" };
+  // ✅ Memoized admin headers
+  const adminHeaders = useMemo(() => ({ "X-Auth-Role": "admin" }), []);
 
   // Toast utility
   const showToast = (message, type = "info") => {
@@ -26,8 +26,8 @@ function AdminControlPanel() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // 🧠 Fetch users
-  const fetchUsers = async () => {
+  // 🧠 Fetch users (memoized)
+  const fetchUsers = useCallback(async () => {
     try {
       const res = await api.get("/admin/control/users", { headers: adminHeaders });
       setUsers(res.data || []);
@@ -37,24 +37,26 @@ function AdminControlPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [adminHeaders]);
 
-  // ⚙️ Get maintenance status
-  const fetchMaintenance = async () => {
+  // ⚙️ Fetch maintenance status (memoized)
+  const fetchMaintenance = useCallback(async () => {
     try {
-      const res = await api.get("/admin/control/maintenance/status");
+      const res = await api.get("/admin/control/maintenance/status", {
+        headers: adminHeaders,
+      });
       setMaintenance(res.data.maintenanceMode);
     } catch (err) {
       console.error("Maintenance fetch failed:", err);
     }
-  };
+  }, [adminHeaders]);
 
   useEffect(() => {
     fetchUsers();
     fetchMaintenance();
-  }, []);
+  }, [fetchUsers, fetchMaintenance]);
 
-  // 🚪 Force logout all
+  // 🚪 Force logout all users
   const handleForceLogout = async () => {
     if (!window.confirm("Force logout all active users?")) return;
     setActionLoading(true);
@@ -85,7 +87,7 @@ function AdminControlPanel() {
     }
   };
 
-  // 🧍 Change role
+  // 🧍 Change role (user ↔ admin)
   const changeRole = async (id, newRole) => {
     setActionLoading(true);
     try {
@@ -105,7 +107,11 @@ function AdminControlPanel() {
   const toggleBlock = async (id, isBlocked) => {
     setActionLoading(true);
     try {
-      await api.put(`/admin/control/users/${id}/block`, { isBlocked: !isBlocked }, { headers: adminHeaders });
+      await api.put(
+        `/admin/control/users/${id}/block`,
+        { isBlocked: !isBlocked },
+        { headers: adminHeaders }
+      );
       setUsers((prev) =>
         prev.map((usr) =>
           usr._id === id ? { ...usr, isBlocked: !isBlocked } : usr
@@ -119,6 +125,7 @@ function AdminControlPanel() {
     }
   };
 
+  // Restrict non-admins
   if (user?.role !== "admin")
     return (
       <div className="text-center text-red-500 font-semibold mt-10">
@@ -127,7 +134,7 @@ function AdminControlPanel() {
     );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:to-gray-800 py-12 px-6">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-12 px-6">
       <div className="max-w-6xl mx-auto space-y-10">
         <h1 className="text-4xl font-extrabold text-center text-teal-600 dark:text-teal-400 mb-4">
           🛡️ Admin Control Panel

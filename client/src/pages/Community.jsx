@@ -1,17 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 
 function Community() {
-  const { token, user, handleAuthError } = useAuth();
+  const { token, handleAuthError } = useAuth(); // ✅ removed unused 'user'
   const [threads, setThreads] = useState([]);
   const [newThread, setNewThread] = useState("");
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState(null);
 
-  // 🔹 Fetch Threads
-  const fetchThreads = async () => {
+  // ✅ Fetch Threads
+  const fetchThreads = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get("/community");
@@ -23,14 +23,13 @@ function Community() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [handleAuthError]);
 
   useEffect(() => {
     fetchThreads();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchThreads]);
 
-  // ✉️ Post new thread
+  // ✅ Post new thread
   const handlePost = async () => {
     if (!token) return alert("Please log in to post in the community!");
     if (!newThread.trim()) return alert("Write something before posting!");

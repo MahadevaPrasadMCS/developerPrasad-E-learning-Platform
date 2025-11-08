@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import api from "../utils/api";
 import axios from "axios";
 import { saveAs } from "file-saver";
@@ -15,30 +15,36 @@ function Store() {
   const [processingId, setProcessingId] = useState(null);
   const [error, setError] = useState("");
 
+  // ✅ Memoized headers
+  const authHeaders = useMemo(
+    () => (token ? { Authorization: `Bearer ${token}` } : {}),
+    [token]
+  );
+
+  // ✅ Fetch resources and wallet in parallel
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [resResources, resWallet] = await Promise.all([
+        api.get("/store"),
+        token ? api.get("/wallet", { headers: authHeaders }) : Promise.resolve(null),
+      ]);
+
+      setResources(resResources.data || []);
+      if (resWallet?.data?.user) setWallet(resWallet.data.user.coins || 0);
+    } catch (err) {
+      console.error("❌ Error loading store:", err);
+      setError("Failed to load resources. Please refresh.");
+    } finally {
+      setLoading(false);
+    }
+  }, [token, authHeaders]);
+
   useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const [resResources, resWallet] = await Promise.all([
-          api.get("/store"),
-          token
-            ? api.get("/wallet", {
-                headers: { Authorization: `Bearer ${token}` },
-              })
-            : Promise.resolve(null),
-        ]);
-
-        setResources(resResources.data || []);
-        if (resWallet?.data?.user) setWallet(resWallet.data.user.coins || 0);
-      } catch (err) {
-        console.error("❌ Error loading store:", err);
-        setError("Failed to load resources. Please refresh.");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchAll();
-  }, [token]);
+  }, [fetchAll]);
 
+  // ✅ Redeem & Download handler
   const handleRedeem = async (resource) => {
     if (!token) {
       alert("Please log in to redeem resources.");
@@ -61,11 +67,11 @@ function Store() {
     try {
       setProcessingId(resource._id);
 
-      // Redeem and deduct coins
+      // Redeem the resource
       const res = await api.post(
         "/store/redeem",
         { resourceId: resource._id },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: authHeaders }
       );
 
       alert(res.data.message || "Redeemed successfully!");
@@ -77,7 +83,7 @@ function Store() {
           ? "http://localhost:5000"
           : "https://youlearnhub-backend.onrender.com";
 
-      // Secure download
+      // Secure file download
       const downloadUrl = `${baseURL}/api/store/download/${encodeURIComponent(
         resource.fileName
       )}?token=${encodeURIComponent(token)}`;
@@ -104,6 +110,7 @@ function Store() {
     }
   };
 
+  // ✅ Loading State
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-600 dark:text-gray-300">
@@ -111,6 +118,7 @@ function Store() {
       </div>
     );
 
+  // ✅ Error State
   if (error)
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -120,6 +128,7 @@ function Store() {
       </div>
     );
 
+  // ✅ Main Store UI
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-12 px-6 animate-fade-in">
       <div className="max-w-6xl mx-auto">
@@ -138,7 +147,7 @@ function Store() {
           </div>
         </div>
 
-        {/* Store Items */}
+        {/* Resources */}
         {resources.length === 0 ? (
           <div className="text-center py-20 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl shadow-lg">
             <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">

@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 
 function Register() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login } = useAuth(); // kept for future use, no harm in retaining
 
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -17,24 +17,19 @@ function Register() {
     setMessage("");
 
     try {
-      const res = await api.post("/auth/register", form);
-      setMessage("✅ Registration successful! Logging you in...");
+      // ✅ Register new user
+      await api.post("/auth/register", form);
+      setMessage("✅ Registration successful! Redirecting to login...");
 
-      // Auto-login for convenience
-      const loginRes = await api.post("/auth/login", {
-        email: form.email,
-        password: form.password,
-      });
-
-      const { user, token } = loginRes.data;
-      login({ user, token });
-
+      // ✅ Redirect to login instead of auto-login
       setTimeout(() => {
-        navigate(user.role === "admin" ? "/admin/manage-quiz" : "/dashboard");
+        navigate("/login");
       }, 1500);
     } catch (err) {
       console.error("Registration failed:", err);
-      setMessage(err.response?.data?.message || "❌ Registration failed. Try again.");
+      setMessage(
+        err.response?.data?.message || "❌ Registration failed. Try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -51,7 +46,9 @@ function Register() {
           Create Account ✨
         </h2>
         <p className="text-center text-gray-600 dark:text-gray-400 mb-6 text-sm">
-          Join <span className="font-semibold text-teal-500">YouLearnHub</span> and start your journey today!
+          Join{" "}
+          <span className="font-semibold text-teal-500">YouLearnHub</span> and
+          start your journey today!
         </p>
 
         {/* Form */}

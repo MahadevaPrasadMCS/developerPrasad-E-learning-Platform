@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -29,7 +29,8 @@ function Rewards() {
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const adminHeaders = { "X-Auth-Role": "admin" };
+  // ✅ Memoize admin headers
+  const adminHeaders = useMemo(() => ({ "X-Auth-Role": "admin" }), []);
 
   const showToast = (msg, type = "info") => {
     setToast({ msg, type });
@@ -194,7 +195,9 @@ function Rewards() {
           <select
             name="userId"
             value={formData.userId}
-            onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, userId: e.target.value })
+            }
             className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-teal-500 focus:outline-none"
             required
           >
@@ -222,7 +225,9 @@ function Rewards() {
             type="text"
             name="reason"
             value={formData.reason}
-            onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, reason: e.target.value })
+            }
             placeholder="Reason for reward"
             className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-teal-500 focus:outline-none"
             required
@@ -236,7 +241,7 @@ function Rewards() {
           </button>
         </form>
 
-        {/* Reward History Table */}
+        {/* Reward History */}
         <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-lg p-8 hover:shadow-2xl transition-all">
           <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-6">
             🧾 Reward History

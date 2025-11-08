@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 
@@ -17,24 +17,8 @@ function AdminAnnouncements() {
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState(null);
 
-  const adminHeaders = { "X-Auth-Role": "admin" };
-
-  // Fetch announcements
-  const fetchAnnouncements = async () => {
-    setGlobalLoading(true);
-    try {
-      const res = await api.get("/announcements", { headers: adminHeaders });
-      setAnnouncements(res.data);
-    } catch (err) {
-      console.error("Fetch failed:", err);
-    } finally {
-      setGlobalLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (user?.role === "admin") fetchAnnouncements();
-  }, [user]);
+  // ✅ Memoized headers
+  const adminHeaders = useMemo(() => ({ "X-Auth-Role": "admin" }), []);
 
   // Toast utility
   const showToast = (message, type = "info") => {
@@ -42,11 +26,30 @@ function AdminAnnouncements() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // ✅ Fetch announcements
+  const fetchAnnouncements = useCallback(async () => {
+    setGlobalLoading(true);
+    try {
+      const res = await api.get("/announcements", { headers: adminHeaders });
+      setAnnouncements(res.data);
+    } catch (err) {
+      console.error("Fetch failed:", err);
+      showToast("❌ Failed to load announcements.", "error");
+    } finally {
+      setGlobalLoading(false);
+    }
+  }, [adminHeaders]);
+
+  useEffect(() => {
+    if (user?.role === "admin") fetchAnnouncements();
+  }, [user, fetchAnnouncements]);
+
   // Post new
   const postAnnouncement = async () => {
     const { title, description } = form;
     if (!title || !description)
       return showToast("⚠️ Title & Description are required!", "warn");
+
     setLoading(true);
     try {
       await api.post("/announcements", form, { headers: adminHeaders });
@@ -113,10 +116,10 @@ function AdminAnnouncements() {
           🛠 Manage Announcements
         </h2>
 
-        {/* Toast Notification */}
+        {/* Toast */}
         {toast && (
           <div
-            className={`fixed top-5 right-5 px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-fade-in ${
+            className={`fixed top-5 right-5 px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-fade-in z-50 ${
               toast.type === "success"
                 ? "bg-green-600 text-white"
                 : toast.type === "warn"

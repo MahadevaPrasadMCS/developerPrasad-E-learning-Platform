@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import { BarChart3, Loader2 } from "lucide-react";
@@ -10,22 +10,27 @@ function AdminQuizAnalytics() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // 🧩 Fetch all quizzes
-  const fetchQuizzes = async () => {
+  // ✅ Memoized admin headers to ensure stability
+  const adminHeaders = useMemo(() => ({ "X-Auth-Role": "admin" }), []);
+
+  // 🧩 Fetch all quizzes (memoized)
+  const fetchQuizzes = useCallback(async () => {
     try {
-      const res = await api.get("/quiz/list");
-      setQuizzes(res.data);
+      const res = await api.get("/quiz/list", { headers: adminHeaders });
+      setQuizzes(res.data || []);
     } catch (err) {
       console.error("Error fetching quizzes:", err);
     }
-  };
+  }, [adminHeaders]);
 
-  // 📊 Fetch analytics for selected quiz
-  const fetchAnalytics = async () => {
+  // 📊 Fetch analytics for selected quiz (memoized)
+  const fetchAnalytics = useCallback(async () => {
     if (!selectedQuiz?._id) return;
     setLoading(true);
     try {
-      const res = await api.get(`/quiz/${selectedQuiz._id}/analytics`);
+      const res = await api.get(`/quiz/${selectedQuiz._id}/analytics`, {
+        headers: adminHeaders,
+      });
       setAnalytics(res.data);
     } catch (err) {
       console.error("Analytics fetch failed:", err);
@@ -33,16 +38,19 @@ function AdminQuizAnalytics() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedQuiz, adminHeaders]);
 
+  // Load quizzes on mount
   useEffect(() => {
     fetchQuizzes();
-  }, []);
+  }, [fetchQuizzes]);
 
+  // Load analytics when quiz changes
   useEffect(() => {
     if (selectedQuiz?._id) fetchAnalytics();
-  }, [selectedQuiz]);
+  }, [selectedQuiz, fetchAnalytics]);
 
+  // 🚫 Restrict non-admins
   if (user?.role !== "admin")
     return (
       <div className="text-center text-red-500 font-semibold mt-10">

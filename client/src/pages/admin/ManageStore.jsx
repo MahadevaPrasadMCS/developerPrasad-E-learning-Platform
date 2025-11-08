@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import { Loader2, Trash2, UploadCloud } from "lucide-react";
@@ -16,7 +16,8 @@ function ManageStore() {
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const adminHeaders = { "X-Auth-Role": "admin" };
+  // ✅ Memoized header to avoid dependency warning
+  const adminHeaders = useMemo(() => ({ "X-Auth-Role": "admin" }), []);
 
   const showToast = (msg, type = "info") => {
     setToast({ msg, type });
@@ -86,7 +87,6 @@ function ManageStore() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-10 px-6 animate-fade-in">
-      {/* Toast */}
       {toast && (
         <div
           className={`fixed top-5 right-5 px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-fade-in z-50 ${
@@ -102,7 +102,6 @@ function ManageStore() {
       )}
 
       <div className="max-w-6xl mx-auto space-y-12">
-        {/* Header */}
         <h1 className="text-4xl font-extrabold text-center text-teal-600 dark:text-teal-400">
           📚 Manage Store Resources
         </h1>

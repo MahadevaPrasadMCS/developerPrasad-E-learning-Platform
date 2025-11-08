@@ -8,10 +8,10 @@ function Explore() {
   const [announcements, setAnnouncements] = useState([]);
   const [tutorials, setTutorials] = useState([]);
   const [upcomingQuizzes, setUpcomingQuizzes] = useState([]);
-  const { darkMode } = useTheme();
+  useTheme(); // ✅ kept to ensure theme context still initializes, but no unused var
   const navigate = useNavigate();
 
-  // Fetch public previews (can be replaced with real API endpoints)
+  // 🧠 Fetch public previews
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -24,8 +24,7 @@ function Explore() {
         setTutorials(tut.data || []);
         setUpcomingQuizzes(quiz.data || []);
       } catch (err) {
-        console.warn("Fallback to mock data for Explore page.");
-        // Mock fallback data if APIs not public yet
+        console.warn("⚠️ Using mock data for Explore page (API fallback).");
         setAnnouncements([
           { _id: 1, title: "New React Quiz Coming Soon!", date: "Nov 10, 2025" },
           { _id: 2, title: "Top Learners of the Month Announced 🎉", date: "Nov 5, 2025" },
@@ -34,13 +33,15 @@ function Explore() {
           {
             _id: 1,
             title: "Intro to JavaScript",
-            thumbnail: "https://media.geeksforgeeks.org/wp-content/uploads/20240701150350/JavaScript-Tutorial-copy.webp",
+            thumbnail:
+              "https://media.geeksforgeeks.org/wp-content/uploads/20240701150350/JavaScript-Tutorial-copy.webp",
             desc: "Understand JS fundamentals with short examples.",
           },
           {
             _id: 2,
             title: "Learn React Basics",
-            thumbnail: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTcl0L3S78sIMLZuHL3fz7_Evl1IrI3H3YXcg&s",
+            thumbnail:
+              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTcl0L3S78sIMLZuHL3fz7_Evl1IrI3H3YXcg&s",
             desc: "Start building components and apps with React.",
           },
         ]);
@@ -55,7 +56,7 @@ function Explore() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white dark:from-gray-900 dark:to-gray-950 transition-colors duration-300 py-10 px-6">
-      {/* Hero Section */}
+      {/* 🌟 Hero Section */}
       <section className="text-center max-w-3xl mx-auto mb-16 animate-fade-in">
         <h1 className="text-4xl sm:text-5xl font-extrabold text-teal-600 dark:text-teal-400 mb-4">
           Explore. Learn. Get Inspired 🚀
@@ -73,7 +74,7 @@ function Explore() {
         </div>
       </section>
 
-      {/* Tutorials Preview */}
+      {/* 🎥 Tutorials Preview */}
       <section className="max-w-6xl mx-auto mb-16 animate-fade-up">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
@@ -86,6 +87,7 @@ function Explore() {
             View All <ArrowRight size={16} />
           </button>
         </div>
+
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {tutorials.map((t) => (
             <div
@@ -113,7 +115,7 @@ function Explore() {
         </div>
       </section>
 
-      {/* Announcements Snapshot */}
+      {/* 📢 Announcements Snapshot */}
       <section className="max-w-6xl mx-auto mb-16 animate-fade-up">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
           📢 Latest Announcements
@@ -131,7 +133,7 @@ function Explore() {
         </div>
       </section>
 
-      {/* Upcoming Quizzes */}
+      {/* 🧩 Upcoming Quizzes */}
       <section className="max-w-6xl mx-auto mb-16 animate-fade-up">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
           🧩 Upcoming Quizzes
@@ -159,7 +161,7 @@ function Explore() {
         </div>
       </section>
 
-      {/* Why Join Section */}
+      {/* 💎 Why Join Section */}
       <section className="max-w-5xl mx-auto text-center py-12 rounded-2xl bg-gradient-to-r from-teal-500 to-teal-700 text-white shadow-lg">
         <h2 className="text-3xl font-bold mb-4">Why Join YouLearnHub?</h2>
         <div className="grid sm:grid-cols-3 gap-6">

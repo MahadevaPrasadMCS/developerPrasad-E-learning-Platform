@@ -15,11 +15,11 @@ function Quiz() {
   const [result, setResult] = useState(null);
   const [autoSubmitted, setAutoSubmitted] = useState(false);
 
-  // Helpers for local submission tracking
+  // 🔹 Local storage helpers
   const isLocallySubmitted = (quizId) => !!localStorage.getItem(`submittedQuiz_${quizId}`);
   const markLocallySubmitted = (quizId) => localStorage.setItem(`submittedQuiz_${quizId}`, "1");
 
-  // Fetch active quiz and user attempts
+  // 🔹 Fetch active quiz and user attempts
   useEffect(() => {
     let ignore = false;
     (async () => {
@@ -36,13 +36,16 @@ function Quiz() {
             });
             const attempts = attRes.data || [];
 
-            chosenQuiz = activeQuizzes.find(
-              (q) => !attempts.some((a) => a.quizId && String(a.quizId._id) === String(q._id))
-            ) || activeQuizzes[0];
+            chosenQuiz =
+              activeQuizzes.find(
+                (q) =>
+                  !attempts.some((a) => a.quizId && String(a.quizId._id) === String(q._id))
+              ) || activeQuizzes[0];
 
             const attempt = attempts.find(
               (a) => a.quizId && String(a.quizId._id) === String(chosenQuiz._id)
             );
+
             if (attempt) {
               setResult({
                 score: attempt.score,
@@ -79,7 +82,7 @@ function Quiz() {
     return () => (ignore = true);
   }, [user, token]);
 
-  // Reset question index and timer
+  // 🔹 Reset index & timer when new quiz loads
   useEffect(() => {
     setIndex(0);
     if (activeQuiz && !submitted) {
@@ -88,19 +91,15 @@ function Quiz() {
     }
   }, [activeQuiz, submitted]);
 
-  // Countdown timer
-  useEffect(() => {
-    if (!registered || submitted || !activeQuiz) return;
-    if (timeLeft <= 0) {
-      if (index < activeQuiz.questions.length - 1) next();
-      else handleSubmit();
-      return;
-    }
-    const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
-    return () => clearInterval(timer);
-  }, [timeLeft, index, registered, submitted, activeQuiz]);
+  // ✅ Stable “next question” handler
+  const next = useCallback(() => {
+    if (activeQuiz && index < activeQuiz.questions.length - 1) {
+      setIndex((i) => i + 1);
+      setTimeLeft(30);
+    } else handleSubmit();
+  }, [activeQuiz, index]);
 
-  // Submit quiz
+  // ✅ Stable “submit quiz” handler
   const handleSubmit = useCallback(
     async (auto = false) => {
       if (autoSubmitted) return;
@@ -113,6 +112,7 @@ function Quiz() {
           { answers },
           { headers: { Authorization: `Bearer ${token}` } }
         );
+
         const payload = res.data;
         setResult({
           score: payload.score,
@@ -133,7 +133,19 @@ function Quiz() {
     [token, activeQuiz, answers, autoSubmitted]
   );
 
-  // Handle register
+  // 🔹 Countdown timer (now dependency-safe)
+  useEffect(() => {
+    if (!registered || submitted || !activeQuiz) return;
+    if (timeLeft <= 0) {
+      if (index < activeQuiz.questions.length - 1) next();
+      else handleSubmit();
+      return;
+    }
+    const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, index, registered, submitted, activeQuiz, next, handleSubmit]);
+
+  // 🔹 Register for quiz
   const handleRegister = async () => {
     if (!token) return alert("Login to register first.");
     if (!activeQuiz) return alert("No active quiz available.");
@@ -154,7 +166,7 @@ function Quiz() {
     }
   };
 
-  // Focus + Fullscreen protection
+  // 🔹 Focus + fullscreen protection
   useEffect(() => {
     if (!registered || submitted || !activeQuiz) return;
 
@@ -162,15 +174,13 @@ function Quiz() {
       if (document.hidden && !autoSubmitted) {
         setTimeout(() => {
           if (document.hidden && !autoSubmitted) handleSubmit(true);
-        }, 3000); // Grace period
+        }, 3000);
       }
     };
 
     const handleFullscreenExit = async () => {
       if (!document.fullscreenElement && !autoSubmitted && !submitted) {
-        const reenter = window.confirm(
-          "You exited fullscreen. Do you want to re-enter to continue?"
-        );
+        const reenter = window.confirm("You exited fullscreen. Re-enter to continue?");
         if (reenter) {
           try {
             await document.documentElement.requestFullscreen();
@@ -193,7 +203,7 @@ function Quiz() {
     };
   }, [registered, submitted, activeQuiz, handleSubmit, autoSubmitted]);
 
-  // Optional: Disable right-click & keyboard shortcuts (Exam Mode)
+  // 🔹 Exam mode protections
   useEffect(() => {
     if (!registered || submitted) return;
     const disableContext = (e) => e.preventDefault();
@@ -214,28 +224,13 @@ function Quiz() {
     setAnswers(updated);
   };
 
-  const next = () => {
-    if (index < activeQuiz.questions.length - 1) {
-      setIndex((i) => i + 1);
-      setTimeLeft(30);
-    } else handleSubmit();
-  };
-
-  // ------------------ UI RENDER ------------------ //
+  // ---------------- UI ---------------- //
 
   if (loading)
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-600">
-        Loading quiz...
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center text-gray-600">Loading quiz...</div>;
 
   if (!activeQuiz)
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500">
-        No active quiz right now.
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center text-gray-500">No active quiz right now.</div>;
 
   if (submitted && result)
     return (
@@ -245,12 +240,8 @@ function Quiz() {
           <p className="text-gray-700 dark:text-gray-200">
             Score: {result.score} / {result.totalQuestions}
           </p>
-          <p className="text-gray-700 dark:text-gray-200">
-            Coins Earned: {result.earnedCoins}
-          </p>
-          <p className="text-sm text-gray-500 mt-3">
-            New balance: {result.newBalance ?? "—"} 🪙
-          </p>
+          <p className="text-gray-700 dark:text-gray-200">Coins Earned: {result.earnedCoins}</p>
+          <p className="text-sm text-gray-500 mt-3">New balance: {result.newBalance ?? "—"} 🪙</p>
         </div>
       </div>
     );
@@ -259,9 +250,7 @@ function Quiz() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <h2 className="text-3xl font-bold text-teal-600 mb-3">{activeQuiz.title}</h2>
-        <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-md">
-          {activeQuiz.description}
-        </p>
+        <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-md">{activeQuiz.description}</p>
         <button
           onClick={handleRegister}
           className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-transform transform hover:-translate-y-1"
@@ -279,16 +268,8 @@ function Quiz() {
     <div className="min-h-screen flex items-center justify-center py-8 px-4 bg-gradient-to-br from-gray-100 to-teal-50 dark:from-gray-900 dark:to-gray-800 transition-all duration-300">
       <div className="w-full max-w-3xl bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 animate-fade-in">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-teal-600 dark:text-teal-400">
-            {activeQuiz.title}
-          </h2>
-          <div
-            className={`font-semibold ${
-              timeLeft <= 10
-                ? "text-red-500 animate-pulse"
-                : "text-gray-700 dark:text-gray-200"
-            }`}
-          >
+          <h2 className="text-xl font-bold text-teal-600 dark:text-teal-400">{activeQuiz.title}</h2>
+          <div className={`font-semibold ${timeLeft <= 10 ? "text-red-500 animate-pulse" : "text-gray-700 dark:text-gray-200"}`}>
             ⏱️ {timeLeft}s
           </div>
         </div>
@@ -307,9 +288,7 @@ function Quiz() {
           ></div>
         </div>
 
-        <h3 className="text-lg font-semibold mb-4 dark:text-gray-100">
-          {question.question}
-        </h3>
+        <h3 className="text-lg font-semibold mb-4 dark:text-gray-100">{question.question}</h3>
 
         <div className="space-y-3">
           {question.options.map((opt, i) => (

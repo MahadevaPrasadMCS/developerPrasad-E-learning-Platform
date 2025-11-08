@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import { Loader2, Coins, Trash2, X } from "lucide-react";
@@ -11,7 +11,8 @@ function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [coinChange, setCoinChange] = useState("");
 
-  const adminHeaders = { "X-Auth-Role": "admin" };
+  // ✅ Memoized headers (prevents ESLint warnings)
+  const adminHeaders = useMemo(() => ({ "X-Auth-Role": "admin" }), []);
 
   // Toast handler
   const showToast = (msg, type = "info") => {
@@ -19,11 +20,8 @@ function AdminUsers() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  useEffect(() => {
-    if (user?.role === "admin") fetchUsers();
-  }, [user]);
-
-  const fetchUsers = async () => {
+  // ✅ Memoized fetch function
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get("/admin/users", { headers: adminHeaders });
@@ -34,7 +32,11 @@ function AdminUsers() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [adminHeaders]);
+
+  useEffect(() => {
+    if (user?.role === "admin") fetchUsers();
+  }, [user, fetchUsers]);
 
   const updateCoins = async (id) => {
     if (!coinChange || isNaN(coinChange))

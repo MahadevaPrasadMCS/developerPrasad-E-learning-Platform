@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import { Loader2, Plus, Minus, Ban, Unlock } from "lucide-react";
@@ -9,7 +9,8 @@ function UsersPage() {
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const adminHeaders = { "X-Auth-Role": "admin" };
+  // ✅ Memoized headers
+  const adminHeaders = useMemo(() => ({ "X-Auth-Role": "admin" }), []);
 
   const showToast = (msg, type = "info") => {
     setToast({ msg, type });
@@ -35,11 +36,7 @@ function UsersPage() {
 
   const handleCoinUpdate = async (id, change) => {
     try {
-      const res = await api.patch(
-        `/users/coins/${id}`,
-        { change },
-        { headers: adminHeaders }
-      );
+      const res = await api.patch(`/users/coins/${id}`, { change }, { headers: adminHeaders });
       showToast(res.data.message || "✅ Coins updated successfully.", "success");
       fetchUsers();
     } catch (err) {
@@ -60,11 +57,7 @@ function UsersPage() {
   };
 
   if (user?.role !== "admin")
-    return (
-      <div className="text-center text-red-500 font-semibold mt-10">
-        Access denied — Admins only.
-      </div>
-    );
+    return <div className="text-center text-red-500 font-semibold mt-10">Access denied — Admins only.</div>;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-10 px-6 animate-fade-in">
@@ -95,9 +88,7 @@ function UsersPage() {
               Loading users...
             </div>
           ) : users.length === 0 ? (
-            <p className="text-center text-gray-500 dark:text-gray-400">
-              No users found.
-            </p>
+            <p className="text-center text-gray-500 dark:text-gray-400">No users found.</p>
           ) : (
             <div className="overflow-x-auto rounded-xl">
               <table className="w-full border-collapse text-sm text-left">
@@ -115,22 +106,16 @@ function UsersPage() {
                   {users.map((u, index) => (
                     <tr
                       key={u._id}
-                      className={`border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-all duration-300 animate-fade-in`}
+                      className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-all duration-300 animate-fade-in"
                       style={{ animationDelay: `${index * 80}ms` }}
                     >
                       <td className="p-3 font-medium">{u.name}</td>
-                      <td className="p-3 text-gray-600 dark:text-gray-300">
-                        {u.email}
-                      </td>
+                      <td className="p-3 text-gray-600 dark:text-gray-300">{u.email}</td>
                       <td className="p-3 text-center capitalize">
                         {u.role === "admin" ? (
-                          <span className="text-red-500 font-semibold">
-                            Admin
-                          </span>
+                          <span className="text-red-500 font-semibold">Admin</span>
                         ) : (
-                          <span className="text-gray-700 dark:text-gray-300">
-                            User
-                          </span>
+                          <span className="text-gray-700 dark:text-gray-300">User</span>
                         )}
                       </td>
                       <td className="p-3 text-center font-semibold text-teal-600 dark:text-teal-400">

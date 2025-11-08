@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -20,27 +20,27 @@ function Dashboard() {
   }, [user, logout, navigate]);
 
   // 🔄 Fetch latest user profile (for updated coins)
+  const fetchUserData = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await api.get("/user/me");
+      const updated = res.data;
+      setUser(updated);
+
+      // 🔁 Sync with localStorage
+      const stored = JSON.parse(localStorage.getItem("auth_data") || "{}");
+      if (stored.user) stored.user.coins = updated.coins;
+      localStorage.setItem("auth_data", JSON.stringify(stored));
+    } catch (err) {
+      handleAuthError(err.response?.status, err.response?.data?.message);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [user, setUser, handleAuthError]);
+
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (!user) return;
-      try {
-        const res = await api.get("/user/me");
-        const updated = res.data;
-        setUser(updated);
-
-        // 🔁 Sync with localStorage
-        const stored = JSON.parse(localStorage.getItem("auth_data") || "{}");
-        if (stored.user) stored.user.coins = updated.coins;
-        localStorage.setItem("auth_data", JSON.stringify(stored));
-      } catch (err) {
-        handleAuthError(err.response?.status, err.response?.data?.message);
-      } finally {
-        setRefreshing(false);
-      }
-    };
-
     fetchUserData();
-  }, []); // fetch on mount
+  }, [fetchUserData]);
 
   // 📢 Fetch Announcements
   useEffect(() => {
