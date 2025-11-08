@@ -5,8 +5,8 @@ import { useAuth } from "../context/AuthContext";
 function Quiz() {
   const { user, token } = useAuth();
 
-  const [activeQuiz, setActiveQuiz] = useState(null);
   const [availableQuizzes, setAvailableQuizzes] = useState([]);
+  const [activeQuiz, setActiveQuiz] = useState(null);
   const [answers, setAnswers] = useState([]);
   const [index, setIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
@@ -17,13 +17,13 @@ function Quiz() {
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ===== Toast Utility =====
+  // ✅ Toast utility
   const showToast = (msg, type = "info") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // ===== Fetch Active Quizzes =====
+  // ✅ Fetch active quizzes
   useEffect(() => {
     let ignore = false;
     (async () => {
@@ -41,8 +41,9 @@ function Quiz() {
             });
             attempts = attRes.data || [];
           } catch (err) {
-            if (err.response?.status !== 403)
-              console.error("Attempt fetch failed:", err.message);
+            if (err.response?.status === 403) {
+              console.warn("User not authorized for attempts (admin or restricted).");
+            } else console.error("Attempt fetch failed:", err.message);
           }
 
           const unattempted = active.filter(
@@ -72,26 +73,21 @@ function Quiz() {
     return () => (ignore = true);
   }, [user, token]);
 
-  // ===== Auto Enter Fullscreen =====
-  const enterFullscreen = useCallback(async () => {
+  // ✅ Enter fullscreen manually (user gesture)
+  const startQuiz = async () => {
     try {
       if (!document.fullscreenElement) {
         await document.documentElement.requestFullscreen();
         showToast("🔒 Fullscreen mode enabled — Exam started", "success");
       }
-    } catch {
+      setRegistered(true);
+      setTimeLeft(30);
+    } catch (err) {
       showToast("⚠️ Unable to enter fullscreen automatically.", "error");
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    if (activeQuiz && !registered && !submitted) {
-      setTimeout(() => enterFullscreen(), 600);
-      setRegistered(true);
-    }
-  }, [activeQuiz, enterFullscreen, registered, submitted]);
-
-  // ===== Submit Quiz =====
+  // ✅ Submit quiz
   const handleSubmit = useCallback(
     async (auto = false) => {
       if (autoSubmitted || !activeQuiz || !token) return;
@@ -110,13 +106,9 @@ function Quiz() {
         });
         setSubmitted(true);
         setAutoSubmitted(auto);
-        if (auto)
-          showToast("⏱️ Quiz auto-submitted due to tab/fullscreen exit.", "error");
+        if (auto) showToast("⏱️ Quiz auto-submitted (rule violation)", "error");
       } catch (err) {
-        showToast(
-          err.response?.data?.message || "Error submitting quiz.",
-          "error"
-        );
+        showToast(err.response?.data?.message || "Error submitting quiz.", "error");
       } finally {
         if (document.fullscreenElement) document.exitFullscreen();
       }
@@ -124,9 +116,9 @@ function Quiz() {
     [token, activeQuiz, answers, autoSubmitted]
   );
 
-  // ===== Timer =====
+  // ✅ Timer countdown
   useEffect(() => {
-    if (!activeQuiz || submitted) return;
+    if (!registered || submitted || !activeQuiz) return;
     if (timeLeft <= 0) {
       if (index < activeQuiz.questions.length - 1) {
         setIndex((i) => i + 1);
@@ -134,15 +126,14 @@ function Quiz() {
       } else handleSubmit();
       return;
     }
-    const t = setInterval(() => setTimeLeft((t) => t - 1), 1000);
-    return () => clearInterval(t);
-  }, [timeLeft, index, activeQuiz, handleSubmit, submitted]);
+    const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, index, registered, submitted, activeQuiz, handleSubmit]);
 
-  // ===== Security: Prevent Switching Tabs / Exiting Fullscreen =====
+  // ✅ Auto-submit if tab hidden or fullscreen exited
   useEffect(() => {
-    if (!activeQuiz || submitted) return;
+    if (!registered || submitted || !activeQuiz) return;
     let hideTimer;
-
     const handleVisibility = () => {
       if (document.hidden && !autoSubmitted) {
         hideTimer = setTimeout(() => {
@@ -150,14 +141,12 @@ function Quiz() {
         }, 3000);
       } else clearTimeout(hideTimer);
     };
-
     const handleFullscreenExit = async () => {
       if (!document.fullscreenElement && !autoSubmitted && !submitted) {
         setAutoSubmitted(true);
         await handleSubmit(true);
       }
     };
-
     document.addEventListener("visibilitychange", handleVisibility);
     document.addEventListener("fullscreenchange", handleFullscreenExit);
     return () => {
@@ -165,11 +154,11 @@ function Quiz() {
       document.removeEventListener("fullscreenchange", handleFullscreenExit);
       clearTimeout(hideTimer);
     };
-  }, [activeQuiz, submitted, autoSubmitted, handleSubmit]);
+  }, [registered, submitted, activeQuiz, handleSubmit, autoSubmitted]);
 
-  // ===== Disable Context Menu / Shortcuts =====
+  // ✅ Block context menu & shortcuts
   useEffect(() => {
-    if (!activeQuiz || submitted) return;
+    if (!registered || submitted) return;
     const disableContext = (e) => e.preventDefault();
     const blockKeys = (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.key === "F12") e.preventDefault();
@@ -180,7 +169,7 @@ function Quiz() {
       document.removeEventListener("contextmenu", disableContext);
       window.removeEventListener("keydown", blockKeys);
     };
-  }, [activeQuiz, submitted]);
+  }, [registered, submitted]);
 
   const selectOption = (qIdx, optionIdx) => {
     const updated = [...answers];
@@ -188,7 +177,7 @@ function Quiz() {
     setAnswers(updated);
   };
 
-  // ===== UI =====
+  // ✅ UI starts here
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-600">
@@ -196,18 +185,19 @@ function Quiz() {
       </div>
     );
 
-  // Multiple quiz selection
+  // Choose quiz if multiple
   if (availableQuizzes.length > 1 && !activeQuiz)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 text-center px-6">
-        <h2 className="text-3xl font-bold text-teal-600">
-          Choose a Quiz to Start
-        </h2>
+        <h2 className="text-3xl font-bold text-teal-600">Choose a Quiz</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-3xl">
           {availableQuizzes.map((q) => (
             <button
               key={q._id}
-              onClick={() => setActiveQuiz(q)}
+              onClick={() => {
+                setActiveQuiz(q);
+                setAnswers(new Array(q.questions.length).fill(null));
+              }}
               className="p-5 bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg border-l-4 border-teal-500 hover:-translate-y-1 transition-all duration-300"
             >
               <h3 className="font-semibold text-lg text-teal-600 dark:text-teal-400">
@@ -215,9 +205,6 @@ function Quiz() {
               </h3>
               <p className="text-gray-600 dark:text-gray-300 text-sm mt-2 line-clamp-2">
                 {q.description || "No description available"}
-              </p>
-              <p className="text-gray-500 text-xs mt-2">
-                {q.questions?.length || 0} Questions
               </p>
             </button>
           ))}
@@ -252,6 +239,24 @@ function Quiz() {
       </div>
     );
 
+  if (!registered)
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <h2 className="text-3xl font-bold text-teal-600 mb-3">
+          {activeQuiz.title}
+        </h2>
+        <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-md">
+          {activeQuiz.description}
+        </p>
+        <button
+          onClick={startQuiz}
+          className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-transform transform hover:-translate-y-1"
+        >
+          Click to Start Quiz in Fullscreen
+        </button>
+      </div>
+    );
+
   const question = activeQuiz.questions[index];
   const progress = ((index + 1) / activeQuiz.questions.length) * 100;
   const timerProgress = (timeLeft / 30) * 100;
@@ -271,6 +276,7 @@ function Quiz() {
           {toast.msg}
         </div>
       )}
+
       <div className="w-full max-w-3xl bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 animate-fade-in">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-teal-600 dark:text-teal-400">
