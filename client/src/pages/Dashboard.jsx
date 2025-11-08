@@ -23,7 +23,7 @@ function Dashboard() {
   const fetchUserData = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await api.get("/user/me");
+      const res = await api.get("/me");
       const updated = res.data;
       setUser(updated);
 

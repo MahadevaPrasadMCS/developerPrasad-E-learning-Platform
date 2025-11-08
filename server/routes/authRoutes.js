@@ -122,7 +122,7 @@ router.post("/login", async (req, res) => {
 /* ============================================
    FETCH CURRENT USER
    ============================================ */
-router.get("/user/me", authMiddleware, async (req, res) => {
+router.get("/user++++/me", authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
 
