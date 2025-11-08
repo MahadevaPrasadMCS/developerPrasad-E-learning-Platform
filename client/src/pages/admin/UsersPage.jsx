@@ -21,7 +21,8 @@ function UsersPage() {
     try {
       setLoading(true);
       const res = await api.get("/users", { headers: adminHeaders });
-      setUsers(res.data || []);
+      const filtered = (res.data || []).filter(u => u.role !== "admin");
+      setUsers(filtered);
     } catch (err) {
       console.error("Failed to fetch users:", err);
       showToast("❌ Failed to fetch users.", "error");
