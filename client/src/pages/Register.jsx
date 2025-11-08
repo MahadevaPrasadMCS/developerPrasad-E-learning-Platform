@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import api from "../utils/api";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 
 function Register() {
   const navigate = useNavigate();
