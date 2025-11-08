@@ -46,7 +46,7 @@ router.post("/register", async (req, res) => {
 });
 
 /* ============================================
-   USER LOGIN
+   USER LOGIN (Updated)
    ============================================ */
 router.post("/login", async (req, res) => {
   try {
@@ -66,14 +66,14 @@ router.post("/login", async (req, res) => {
 
     const normalizedEmail = String(email).toLowerCase().trim();
 
-    // Find user in DB
+    // Find user
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       console.log("🚫 No user found for:", normalizedEmail);
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Check if blocked
+    // Blocked check
     if (user.isBlocked) {
       console.log("🚫 Blocked user tried login:", normalizedEmail);
       return res.status(403).json({ message: "Account blocked. Contact admin." });
@@ -86,11 +86,16 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Check secret
+    // JWT Secret check
     if (!process.env.JWT_SECRET) {
       console.error("❗ Missing JWT_SECRET in environment variables");
       return res.status(500).json({ message: "Server misconfiguration" });
     }
+
+    // ✅ Reset forced logout + update last login
+    user.isLoggedOut = false;
+    user.lastLogin = new Date();
+    await user.save();
 
     // Create token
     const token = jwt.sign(
@@ -118,5 +123,6 @@ router.post("/login", async (req, res) => {
     return res.status(500).json({ message: "Server error during login" });
   }
 });
+
 
 export default router;
