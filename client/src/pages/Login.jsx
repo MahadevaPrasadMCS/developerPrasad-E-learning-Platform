@@ -25,7 +25,7 @@ function Login() {
       login({ user, token });
 
       // 🎯 Redirect based on role
-      navigate(user.role === "admin" ? "/admin/manage-quiz" : "/dashboard");
+      navigate(user.role === "admin" ? "/admin/stats" : "/dashboard");
     } catch (err) {
       console.error("Login failed:", err);
       setError(err.response?.data?.message || "Invalid email or password");

@@ -1,7 +1,6 @@
 import express from "express";
 import User from "../models/User.js";
 import QuizAttempt from "../models/quizAttempt.js";
-import Quiz from "../models/Quiz.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import adminMiddleware from "../middleware/adminMiddleware.js";
 
