@@ -40,7 +40,7 @@ function Dashboard() {
     };
 
     fetchUserData();
-  }, []); // fetch on mount
+  }); // fetch on mount
 
   // 📢 Fetch Announcements
   useEffect(() => {
