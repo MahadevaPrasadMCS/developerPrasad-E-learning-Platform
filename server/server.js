@@ -45,6 +45,11 @@ app.use(
 app.use(express.json());
 app.use(compression());
 
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - IP:${req.ip}`);
+  next();
+});
+
 // ✅ Ensure uploads folder exists
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
