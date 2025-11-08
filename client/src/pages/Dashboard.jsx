@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -17,33 +17,32 @@ function Dashboard() {
       logout("🚫 Your account is blocked. Contact admin.");
       navigate("/login");
     }
-  }, [user?.isBlocked]); // minimal dependency
+  }, [user, logout, navigate]);
 
-  // 🔄 Fetch latest user profile once after mount
-  const fetchUserData = useCallback(async () => {
-    try {
-      const res = await api.get("/auth/me");
-      const updated = res.data;
-
-      setUser((prev) => ({ ...prev, ...updated }));
-
-      const stored = JSON.parse(localStorage.getItem("auth_data") || "{}");
-      if (stored.user) stored.user.coins = updated.coins;
-      localStorage.setItem("auth_data", JSON.stringify(stored));
-    } catch (err) {
-      handleAuthError(err.response?.status, err.response?.data?.message);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [setUser, handleAuthError]);
-
-  // ✅ Run only once when Dashboard mounts
+  // 🔄 Fetch latest user profile (for updated coins)
   useEffect(() => {
-    if (user) fetchUserData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // empty dependency array prevents infinite refetching
+    const fetchUserData = async () => {
+      if (!user) return;
+      try {
+        const res = await api.get("/user/me");
+        const updated = res.data;
+        setUser(updated);
 
-  // 📢 Fetch announcements once
+        // 🔁 Sync with localStorage
+        const stored = JSON.parse(localStorage.getItem("auth_data") || "{}");
+        if (stored.user) stored.user.coins = updated.coins;
+        localStorage.setItem("auth_data", JSON.stringify(stored));
+      } catch (err) {
+        handleAuthError(err.response?.status, err.response?.data?.message);
+      } finally {
+        setRefreshing(false);
+      }
+    };
+
+    fetchUserData();
+  }, []); // fetch on mount
+
+  // 📢 Fetch Announcements
   useEffect(() => {
     const fetchAnnouncements = async () => {
       try {
@@ -56,10 +55,8 @@ function Dashboard() {
         setLoading(false);
       }
     };
-
     fetchAnnouncements();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // no dependency on handleAuthError
+  }, [handleAuthError]);
 
   // ⚡ Quick buttons
   const actions = [
@@ -89,6 +86,7 @@ function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 p-6 sm:p-8">
       <div className="max-w-5xl mx-auto bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl p-8 transition-all duration-300">
+        {/* 🌟 Header */}
         <div className="text-center mb-10">
           <h1 className="text-4xl font-extrabold text-teal-600 dark:text-teal-400 mb-2 drop-shadow-sm">
             Welcome, {user.name.split(" ")[0]} 👋
@@ -105,14 +103,18 @@ function Dashboard() {
         {/* 💎 Stats Section */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10">
           <div className="p-6 bg-gradient-to-r from-teal-100 to-teal-50 dark:from-teal-900/50 dark:to-teal-800/30 rounded-2xl shadow-md text-center transform hover:scale-[1.03] transition-transform duration-300">
-            <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">Role</p>
+            <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+              Role
+            </p>
             <h2 className="text-2xl font-bold text-teal-700 dark:text-teal-300 capitalize mt-1">
               {user.role}
             </h2>
           </div>
 
           <div className="p-6 bg-gradient-to-r from-yellow-100 to-yellow-50 dark:from-yellow-900/40 dark:to-yellow-800/20 rounded-2xl shadow-md text-center transform hover:scale-[1.03] transition-transform duration-300">
-            <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">Total Coins</p>
+            <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+              Total Coins
+            </p>
             <h2 className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 mt-1">
               💰 {refreshing ? "..." : user.coins}
             </h2>

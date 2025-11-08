@@ -119,22 +119,4 @@ router.post("/login", async (req, res) => {
   }
 });
 
-/* ============================================
-   FETCH CURRENT USER
-   ============================================ */
-router.get("/me", authMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).select("-password");
-
-    if (!user) return res.status(404).json({ message: "User not found" });
-    if (user.isBlocked)
-      return res.status(403).json({ message: "Your account is blocked." });
-
-    return res.json(user);
-  } catch (error) {
-    console.error("Fetch user error:", error);
-    return res.status(500).json({ message: "Server error while fetching user" });
-  }
-});
-
 export default router;
