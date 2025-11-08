@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import { Loader2, Trash2, UploadCloud } from "lucide-react";
@@ -23,7 +23,7 @@ function ManageStore() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const fetchResources = async () => {
+  const fetchResources = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get("/store", { headers: adminHeaders });
@@ -34,11 +34,11 @@ function ManageStore() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [adminHeaders]);
 
   useEffect(() => {
     fetchResources();
-  }, []);
+  }, [fetchResources]);
 
   const handleUpload = async (e) => {
     e.preventDefault();

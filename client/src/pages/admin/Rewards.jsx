@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -36,7 +36,7 @@ function Rewards() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [summaryRes, rewardsRes, usersRes] = await Promise.all([
@@ -53,11 +53,11 @@ function Rewards() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [adminHeaders]);
 
   useEffect(() => {
     if (user?.role === "admin") fetchData();
-  }, [user]);
+  }, [user, fetchData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -194,9 +194,7 @@ function Rewards() {
           <select
             name="userId"
             value={formData.userId}
-            onChange={(e) =>
-              setFormData({ ...formData, userId: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
             className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-teal-500 focus:outline-none"
             required
           >
@@ -224,9 +222,7 @@ function Rewards() {
             type="text"
             name="reason"
             value={formData.reason}
-            onChange={(e) =>
-              setFormData({ ...formData, reason: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
             placeholder="Reason for reward"
             className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-teal-500 focus:outline-none"
             required

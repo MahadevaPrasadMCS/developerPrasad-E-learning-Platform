@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import { Loader2, Plus, Minus, Ban, Unlock } from "lucide-react";
@@ -16,7 +16,7 @@ function UsersPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get("/users", { headers: adminHeaders });
@@ -27,11 +27,11 @@ function UsersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [adminHeaders]);
 
   useEffect(() => {
     if (user?.role === "admin") fetchUsers();
-  }, [user]);
+  }, [user, fetchUsers]);
 
   const handleCoinUpdate = async (id, change) => {
     try {
