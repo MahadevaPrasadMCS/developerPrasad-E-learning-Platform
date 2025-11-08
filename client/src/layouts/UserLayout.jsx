@@ -1,266 +1,160 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
-import { Sun, Moon, ChevronDown, ChevronUp } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
-import { useTheme } from "../context/ThemeContext";
-import Footer from "../components/Footer";
-import CookieConsent from "../components/CookieConsent";
+// inside your component
 
-function UserLayout() {
-  const { token, user, logout } = useAuth();
-  const { darkMode, toggleTheme } = useTheme();
-  const navigate = useNavigate();
+// ✨ Enhanced NavItem
+const NavItem = ({ to, label }) => (
+  <NavLink
+    to={to}
+    className={({ isActive }) =>
+      `relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 group
+      ${isActive
+        ? "text-teal-600 dark:text-teal-400 bg-teal-100/60 dark:bg-teal-900/40 font-semibold"
+        : "text-gray-700 dark:text-gray-200 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50/60 dark:hover:bg-gray-800/60"
+      }`
+    }
+    onClick={() => setMenuOpen(false)}
+  >
+    {label}
+    {/* Animated underline */}
+    <span
+      className={`absolute bottom-1 left-1/2 -translate-x-1/2 h-[2px] w-0 bg-teal-500 dark:bg-teal-400 rounded-full transition-all duration-300 group-hover:w-3/4 ${
+        window.location.pathname === to ? "w-3/4" : ""
+      }`}
+    ></span>
+  </NavLink>
+);
 
-  const [dropdown, setDropdown] = useState(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const dropdownTimer = useRef(null);
-
-  const handleLogout = () => logout(user?.role);
-
-  // ✨ Custom styled NavItem with animated underline
-  const NavItem = ({ to, label }) => (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        `relative px-4 py-2 text-sm font-medium transition-all duration-300 group
-        ${
-          isActive
-            ? "text-teal-600 dark:text-teal-400 font-semibold"
-            : "text-gray-700 dark:text-gray-200 hover:text-teal-500"
-        }`
-      }
-      onClick={() => setMenuOpen(false)}
-    >
-      {label}
-      {/* Underline accent animation */}
-      <span
-        className={`absolute left-0 bottom-0 w-full h-[2px] rounded-md bg-teal-500 dark:bg-teal-400 transform transition-transform duration-300 origin-left
-          ${
-            window.location.pathname === to
-              ? "scale-x-100"
-              : "scale-x-0 group-hover:scale-x-100"
-          }`}
-      ></span>
-    </NavLink>
-  );
-
-  const groupedLinks = [
-    {
-      label: "Your Learning",
-      items: [
-        { label: "Tutorials", to: "/tutorials" },
-        { label: "Learning-resources", to: "/learn" },
-        { label: "Quiz", to: "/quiz" },
-      ],
-    },
-    {
-      label: "Community",
-      items: [
-        { label: "Leaderboard", to: "/leaderboard" },
-        { label: "Community", to: "/community" },
-      ],
-    },
-    {
-      label: "Resources",
-      items: [
-        { label: "Store", to: "/store" },
-        { label: "Announcements", to: "/announcements" },
-      ],
-    },
-    {
-      label: "Profile",
-      items: [
-        { label: "Dashboard", to: "/dashboard" },
-        { label: "Wallet", to: "/wallet" },
-      ],
-    },
-  ];
-
-  const moreLinks = [
-    { label: "Explore", to: "/explore" },
-    { label: "About", to: "/about" },
-    { label: "Contact", to: "/contact" },
-    { label: "Support", to: "/support" },
-  ];
-
-  // 🧹 Clean up dropdown timer
-  useEffect(() => {
-    return () => {
-      if (dropdownTimer.current) clearTimeout(dropdownTimer.current);
-    };
-  }, []);
-
-  return (
-    <div className="flex flex-col min-h-screen">
-      {/* 🌙 Navbar */}
-      <nav className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/90 backdrop-blur-lg shadow-md transition-all">
-        <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-3">
-          {/* Logo */}
-          <div
-            onClick={() => navigate("/")}
-            className="flex items-center gap-2 cursor-pointer select-none"
-          >
-            <img
-              src={require("../assets/logo.png")}
-              alt="logo"
-              className="h-9 w-9 rounded-full"
-            />
-            <h1 className="text-xl font-semibold text-teal-600 dark:text-teal-400 tracking-wide">
-              YouLearnHub
-            </h1>
-          </div>
-
-          {/* Desktop Menu */}
-          <ul className="hidden md:flex items-center gap-4">
-            {!token ? (
-              <>
-                <NavItem to="/" label="Home" />
-
-                {/* Visit Dropdown */}
-                <div
-                  className="relative"
-                  onMouseEnter={() => {
-                    if (dropdownTimer.current) clearTimeout(dropdownTimer.current);
-                    setDropdown("more");
-                  }}
-                  onMouseLeave={() => {
-                    dropdownTimer.current = setTimeout(() => setDropdown(null), 200);
-                  }}
-                >
-                  <button
-                    className="flex items-center gap-1 px-3 py-2 hover:text-teal-500 dark:text-gray-200 transition-all duration-200"
-                    onClick={() => setDropdown(dropdown === "more" ? null : "more")}
-                  >
-                    Visit
-                    {dropdown === "more" ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  </button>
-                  <div
-                    className={`absolute left-0 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-2 min-w-[160px] transition-all duration-200 ${
-                      dropdown === "more"
-                        ? "opacity-100 translate-y-0 pointer-events-auto"
-                        : "opacity-0 translate-y-1 pointer-events-none"
-                    }`}
-                  >
-                    {moreLinks.map((link) => (
-                      <NavItem key={link.to} to={link.to} label={link.label} />
-                    ))}
-                  </div>
-                </div>
-
-                <NavItem to="/register" label="Register" />
-                <NavItem to="/login" label="Login" />
-              </>
-            ) : (
-              groupedLinks.map((group, idx) => (
-                <div
-                  key={idx}
-                  className="relative"
-                  onMouseEnter={() => {
-                    if (dropdownTimer.current) clearTimeout(dropdownTimer.current);
-                    setDropdown(idx);
-                  }}
-                  onMouseLeave={() => {
-                    dropdownTimer.current = setTimeout(() => setDropdown(null), 200);
-                  }}
-                >
-                  <button
-                    className="flex items-center gap-1 px-3 py-2 hover:text-teal-500 dark:text-gray-200 transition-all duration-200"
-                    onClick={() => setDropdown(dropdown === idx ? null : idx)}
-                  >
-                    {group.label}
-                    {dropdown === idx ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  </button>
-                  <div
-                    className={`absolute left-0 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-2 min-w-[180px] transition-all duration-200 ${
-                      dropdown === idx
-                        ? "opacity-100 translate-y-0 pointer-events-auto"
-                        : "opacity-0 translate-y-1 pointer-events-none"
-                    }`}
-                  >
-                    {group.items.map((i) => (
-                      <NavItem key={i.to} to={i.to} label={i.label} />
-                    ))}
-                  </div>
-                </div>
-              ))
-            )}
-
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-md bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-            >
-              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-
-            {/* Logout */}
-            {token && (
-              <button
-                onClick={handleLogout}
-                className="bg-teal-500 hover:bg-teal-600 text-white px-3 py-1.5 rounded-md text-sm shadow-md transition-transform hover:scale-105"
-              >
-                Logout
-              </button>
-            )}
-          </ul>
-
-          {/* Mobile Menu Toggle */}
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            {menuOpen ? "✖" : "☰"}
-          </button>
+return (
+  <div className="flex flex-col min-h-screen">
+    {/* 🌙 Navbar */}
+    <nav className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/90 backdrop-blur-lg shadow-md border-b border-gray-100 dark:border-gray-800 transition-all">
+      <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-3">
+        {/* Logo */}
+        <div
+          onClick={() => navigate("/")}
+          className="flex items-center gap-2 cursor-pointer select-none"
+        >
+          <img
+            src={require("../assets/logo.png")}
+            alt="logo"
+            className="h-9 w-9 rounded-full"
+          />
+          <h1 className="text-xl font-semibold text-teal-600 dark:text-teal-400 tracking-wide">
+            YouLearnHub
+          </h1>
         </div>
 
-        {/* Mobile Menu */}
-        {menuOpen && (
-          <div className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-3 space-y-2 animate-fade-in">
-            {!token ? (
-              <>
-                <NavItem to="/" label="Home" />
-                {moreLinks.map((l) => (
-                  <NavItem key={l.to} to={l.to} label={l.label} />
-                ))}
-                <NavItem to="/register" label="Register" />
-                <NavItem to="/login" label="Login" />
-              </>
-            ) : (
-              groupedLinks.map((group) => (
-                <details key={group.label}>
-                  <summary className="cursor-pointer py-2 text-gray-700 dark:text-gray-200 font-medium flex justify-between items-center">
-                    {group.label}
-                  </summary>
-                  <div className="ml-3 space-y-1 mt-1">
-                    {group.items.map((i) => (
-                      <NavItem key={i.to} to={i.to} label={i.label} />
-                    ))}
-                  </div>
-                </details>
-              ))
-            )}
+        {/* Desktop Menu */}
+        <ul className="hidden md:flex items-center gap-3">
+          {!token ? (
+            <>
+              <NavItem to="/" label="Home" />
 
-            {token && (
-              <button
-                onClick={handleLogout}
-                className="w-full bg-teal-500 hover:bg-teal-600 text-white py-2 rounded-md text-sm"
+              {/* Visit Dropdown */}
+              <div
+                className="relative group"
+                onMouseEnter={() => {
+                  if (dropdownTimer.current) clearTimeout(dropdownTimer.current);
+                  setDropdown("more");
+                }}
+                onMouseLeave={() => {
+                  dropdownTimer.current = setTimeout(() => setDropdown(null), 200);
+                }}
               >
-                Logout
-              </button>
-            )}
-          </div>
-        )}
-      </nav>
+                <button
+                  className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                    dropdown === "more"
+                      ? "text-teal-600 dark:text-teal-400 bg-teal-100/60 dark:bg-teal-900/40"
+                      : "text-gray-700 dark:text-gray-200 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50/60 dark:hover:bg-gray-800/60"
+                  }`}
+                  onClick={() => setDropdown(dropdown === "more" ? null : "more")}
+                >
+                  Visit
+                  {dropdown === "more" ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
 
-      {/* Main Content */}
-      <main className="flex-grow p-4 md:p-6 bg-gray-50 dark:bg-gray-900 transition">
-        <Outlet />
-      </main>
+                <div
+                  className={`absolute left-0 mt-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 min-w-[160px] backdrop-blur-md transition-all duration-200 ${
+                    dropdown === "more"
+                      ? "opacity-100 translate-y-0 pointer-events-auto"
+                      : "opacity-0 translate-y-1 pointer-events-none"
+                  }`}
+                >
+                  {moreLinks.map((link) => (
+                    <NavItem key={link.to} to={link.to} label={link.label} />
+                  ))}
+                </div>
+              </div>
 
-      <CookieConsent />
-      <Footer />
-    </div>
-  );
-}
+              <NavItem to="/register" label="Register" />
+              <NavItem to="/login" label="Login" />
+            </>
+          ) : (
+            groupedLinks.map((group, idx) => (
+              <div
+                key={idx}
+                className="relative group"
+                onMouseEnter={() => {
+                  if (dropdownTimer.current) clearTimeout(dropdownTimer.current);
+                  setDropdown(idx);
+                }}
+                onMouseLeave={() => {
+                  dropdownTimer.current = setTimeout(() => setDropdown(null), 200);
+                }}
+              >
+                <button
+                  className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                    dropdown === idx
+                      ? "text-teal-600 dark:text-teal-400 bg-teal-100/60 dark:bg-teal-900/40"
+                      : "text-gray-700 dark:text-gray-200 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50/60 dark:hover:bg-gray-800/60"
+                  }`}
+                  onClick={() => setDropdown(dropdown === idx ? null : idx)}
+                >
+                  {group.label}
+                  {dropdown === idx ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
 
-export default UserLayout;
+                <div
+                  className={`absolute left-0 mt-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 min-w-[180px] backdrop-blur-md transition-all duration-200 ${
+                    dropdown === idx
+                      ? "opacity-100 translate-y-0 pointer-events-auto"
+                      : "opacity-0 translate-y-1 pointer-events-none"
+                  }`}
+                >
+                  {group.items.map((i) => (
+                    <NavItem key={i.to} to={i.to} label={i.label} />
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+          >
+            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
+          {/* Logout */}
+          {token && (
+            <button
+              onClick={handleLogout}
+              className="bg-teal-500 hover:bg-teal-600 text-white px-3 py-1.5 rounded-lg text-sm shadow-md transition-transform hover:scale-105"
+            >
+              Logout
+            </button>
+          )}
+        </ul>
+
+        {/* Mobile Menu Toggle */}
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="md:hidden p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+        >
+          {menuOpen ? "✖" : "☰"}
+        </button>
+      </div>
+    </nav>
+  </div>
+);

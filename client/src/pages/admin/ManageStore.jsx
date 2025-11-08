@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
-import { Loader2, Trash2, UploadCloud } from "lucide-react";
+import { Loader2, Trash2, UploadCloud, Pencil, X } from "lucide-react";
 
 function ManageStore() {
   const { user } = useAuth();
@@ -15,8 +15,8 @@ function ManageStore() {
   });
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null); // for editing resource
 
-  // ✅ Memoized header to avoid dependency warning
   const adminHeaders = useMemo(() => ({ "X-Auth-Role": "admin" }), []);
 
   const showToast = (msg, type = "info") => {
@@ -75,6 +75,27 @@ function ManageStore() {
     } catch (err) {
       console.error("Delete failed:", err);
       showToast("❌ Failed to delete resource.", "error");
+    }
+  };
+
+  const handleEditSave = async () => {
+    if (!editing) return;
+    try {
+      await api.put(
+        `/store/${editing._id}`,
+        {
+          title: editing.title,
+          description: editing.description,
+          coinsRequired: editing.coinsRequired,
+        },
+        { headers: adminHeaders }
+      );
+      showToast("✅ Resource updated successfully!", "success");
+      setEditing(null);
+      fetchResources();
+    } catch (err) {
+      console.error("Edit failed:", err);
+      showToast("❌ Failed to update resource.", "error");
     }
   };
 
@@ -198,7 +219,13 @@ function ManageStore() {
                   <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
                     💰 <b>{r.coinsRequired}</b> coins • {r.type.toUpperCase()}
                   </p>
-                  <div className="flex justify-end">
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setEditing(r)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm shadow transition-all duration-200"
+                    >
+                      <Pencil size={15} /> Edit
+                    </button>
                     <button
                       onClick={() => handleDelete(r._id)}
                       className="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm shadow transition-all duration-200"
@@ -212,6 +239,60 @@ function ManageStore() {
           )}
         </section>
       </div>
+
+      {/* ✏️ Edit Modal */}
+      {editing && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-teal-600 dark:text-teal-400">
+                Edit Resource
+              </h3>
+              <button
+                onClick={() => setEditing(null)}
+                className="text-gray-500 hover:text-red-500 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <input
+              type="text"
+              value={editing.title}
+              onChange={(e) => setEditing({ ...editing, title: e.target.value })}
+              placeholder="Title"
+              className="w-full p-3 mb-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+            />
+            <textarea
+              value={editing.description}
+              onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+              placeholder="Description"
+              className="w-full p-3 mb-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+              rows={3}
+            />
+            <input
+              type="number"
+              value={editing.coinsRequired}
+              onChange={(e) => setEditing({ ...editing, coinsRequired: e.target.value })}
+              placeholder="Coins Required"
+              className="w-full p-3 mb-5 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setEditing(null)}
+                className="px-4 py-2 bg-gray-300 dark:bg-gray-700 rounded-md"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditSave}
+                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-md shadow-md transition-all"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

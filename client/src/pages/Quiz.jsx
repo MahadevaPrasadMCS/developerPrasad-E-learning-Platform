@@ -5,7 +5,9 @@ import { useAuth } from "../context/AuthContext";
 function Quiz() {
   const { user, token } = useAuth();
 
+  const [activeQuizzes, setActiveQuizzes] = useState([]);
   const [activeQuiz, setActiveQuiz] = useState(null);
+  const [availableQuizzes, setAvailableQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [registered, setRegistered] = useState(false);
   const [answers, setAnswers] = useState([]);
@@ -14,72 +16,55 @@ function Quiz() {
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState(null);
   const [autoSubmitted, setAutoSubmitted] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  // Local storage helpers
+  // Toast utility
+  const showToast = (msg, type = "info") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const isLocallySubmitted = (quizId) =>
     !!localStorage.getItem(`submittedQuiz_${quizId}`);
   const markLocallySubmitted = (quizId) =>
     localStorage.setItem(`submittedQuiz_${quizId}`, "1");
 
-  // Fetch active quiz and user attempts
+  // ✅ Fetch quizzes and attempts
   useEffect(() => {
     let ignore = false;
     (async () => {
       try {
         setLoading(true);
         const res = await api.get("/quiz/active");
-        const activeQuizzes = Array.isArray(res.data) ? res.data : [res.data];
-        let chosenQuiz = null;
+        const active = Array.isArray(res.data) ? res.data : [res.data];
+        if (!active.length) return setActiveQuiz(null);
 
         if (user && token) {
-          try {
-            const attRes = await api.get("/quiz/attempts/me", {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            const attempts = attRes.data || [];
+          const attRes = await api.get("/quiz/attempts/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const attempts = attRes.data || [];
 
-            chosenQuiz =
-              activeQuizzes.find(
-                (q) =>
-                  !attempts.some(
-                    (a) => a.quizId && String(a.quizId._id) === String(q._id)
-                  )
-              ) || activeQuizzes[0];
+          const unattempted = active.filter(
+            (q) => !attempts.some((a) => String(a.quizId?._id) === String(q._id))
+          );
 
-            const attempt = attempts.find(
-              (a) =>
-                a.quizId && String(a.quizId._id) === String(chosenQuiz._id)
-            );
+          if (ignore) return;
 
-            if (attempt) {
-              setResult({
-                score: attempt.score,
-                totalQuestions:
-                  attempt.answers?.length || chosenQuiz.questions.length,
-                earnedCoins: attempt.earnedCoins || 0,
-              });
-              setSubmitted(true);
-              setRegistered(true);
-            } else {
-              if (isLocallySubmitted(chosenQuiz._id)) setSubmitted(true);
-              setRegistered(chosenQuiz.participants?.includes(user._id));
-            }
-          } catch (err) {
-            console.warn("Attempt fetch failed:", err);
-            chosenQuiz = activeQuizzes[0];
+          if (unattempted.length > 1) {
+            setAvailableQuizzes(unattempted);
+          } else if (unattempted.length === 1) {
+            setActiveQuiz(unattempted[0]);
+            setAnswers(new Array(unattempted[0].questions.length).fill(null));
+            setTimeLeft(30);
+          } else {
+            setActiveQuiz(null);
           }
         } else {
-          chosenQuiz = activeQuizzes[0];
-        }
-
-        if (ignore) return;
-        setActiveQuiz(chosenQuiz || null);
-        if (chosenQuiz?.questions?.length) {
-          setAnswers(new Array(chosenQuiz.questions.length).fill(null));
-          setTimeLeft(30);
+          setAvailableQuizzes(active);
         }
       } catch (err) {
-        console.warn("⚠️ No active quiz:", err.message);
+        console.warn("⚠️ Quiz fetch error:", err.message);
         setActiveQuiz(null);
       } finally {
         if (!ignore) setLoading(false);
@@ -88,29 +73,52 @@ function Quiz() {
     return () => (ignore = true);
   }, [user, token]);
 
-  // Reset index & timer when quiz changes
-  useEffect(() => {
-    setIndex(0);
-    if (activeQuiz && !submitted) {
-      setAnswers(new Array(activeQuiz.questions.length).fill(null));
-      setTimeLeft(30);
+  // ✅ Automatically enter fullscreen when quiz starts
+  const enterFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        showToast("🔒 Fullscreen mode enabled — Exam started", "success");
+      }
+    } catch {
+      showToast("⚠️ Unable to enter fullscreen automatically.", "error");
     }
-  }, [activeQuiz, submitted]);
+  }, []);
 
-  // ✅ Stable “submit quiz” handler
+  // Trigger fullscreen once user selects a quiz
+  useEffect(() => {
+    if (activeQuiz && !registered && !submitted) {
+      setTimeout(() => enterFullscreen(), 500);
+    }
+  }, [activeQuiz, enterFullscreen, registered, submitted]);
+
+  // Register user (auto fullscreen)
+  const handleRegister = async () => {
+    if (!token) return showToast("⚠️ Login to register first.", "error");
+    if (!activeQuiz) return showToast("❌ No active quiz available.", "error");
+
+    try {
+      await api.post(
+        `/quiz/register/${activeQuiz._id}`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setRegistered(true);
+      await enterFullscreen();
+    } catch (err) {
+      showToast(err.response?.data?.message || "❌ Registration failed.", "error");
+    }
+  };
+
   const handleSubmit = useCallback(
     async (auto = false) => {
-      if (autoSubmitted) return;
-      if (!token) return alert("Login to submit quiz.");
-      if (!activeQuiz) return alert("No quiz to submit.");
-
+      if (autoSubmitted || !activeQuiz || !token) return;
       try {
         const res = await api.post(
           `/quiz/submit/${activeQuiz._id}`,
           { answers },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-
         const payload = res.data;
         setResult({
           score: payload.score,
@@ -121,9 +129,9 @@ function Quiz() {
         setSubmitted(true);
         markLocallySubmitted(activeQuiz._id);
         setAutoSubmitted(auto);
-        if (auto) alert("Quiz auto-submitted due to rule violation.");
+        if (auto) showToast("⏱️ Quiz auto-submitted (rule violation)", "error");
       } catch (err) {
-        alert(err.response?.data?.message || "Error submitting quiz.");
+        showToast(err.response?.data?.message || "Error submitting quiz.", "error");
       } finally {
         if (document.fullscreenElement) document.exitFullscreen();
       }
@@ -131,7 +139,6 @@ function Quiz() {
     [token, activeQuiz, answers, autoSubmitted]
   );
 
-  // ✅ Stable “next question” handler (added handleSubmit dependency)
   const next = useCallback(() => {
     if (activeQuiz && index < activeQuiz.questions.length - 1) {
       setIndex((i) => i + 1);
@@ -151,75 +158,38 @@ function Quiz() {
     return () => clearInterval(timer);
   }, [timeLeft, index, registered, submitted, activeQuiz, next, handleSubmit]);
 
-  // Register for quiz
-  const handleRegister = async () => {
-    if (!token) return alert("Login to register first.");
-    if (!activeQuiz) return alert("No active quiz available.");
-
-    try {
-      await api.post(
-        `/quiz/register/${activeQuiz._id}`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setRegistered(true);
-      try {
-        await document.documentElement.requestFullscreen();
-      } catch {
-        console.warn("Fullscreen request failed");
-      }
-      alert("Registered successfully! Quiz will start in fullscreen.");
-    } catch (err) {
-      alert(err.response?.data?.message || "Error registering for quiz.");
-    }
-  };
-
-  // Focus + fullscreen protection
+  // Visibility and fullscreen protection
   useEffect(() => {
     if (!registered || submitted || !activeQuiz) return;
-
+    let hideTimer;
     const handleVisibility = () => {
       if (document.hidden && !autoSubmitted) {
-        setTimeout(() => {
+        hideTimer = setTimeout(() => {
           if (document.hidden && !autoSubmitted) handleSubmit(true);
         }, 3000);
-      }
+      } else clearTimeout(hideTimer);
     };
-
     const handleFullscreenExit = async () => {
       if (!document.fullscreenElement && !autoSubmitted && !submitted) {
-        const reenter = window.confirm(
-          "You exited fullscreen. Re-enter to continue?"
-        );
-        if (reenter) {
-          try {
-            await document.documentElement.requestFullscreen();
-          } catch (err) {
-            console.warn("Re-enter fullscreen failed:", err);
-          }
-        } else {
-          setAutoSubmitted(true);
-          handleSubmit(true);
-        }
+        setAutoSubmitted(true);
+        await handleSubmit(true);
       }
     };
-
     document.addEventListener("visibilitychange", handleVisibility);
     document.addEventListener("fullscreenchange", handleFullscreenExit);
-
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
       document.removeEventListener("fullscreenchange", handleFullscreenExit);
+      clearTimeout(hideTimer);
     };
   }, [registered, submitted, activeQuiz, handleSubmit, autoSubmitted]);
 
-  // Exam mode protections
+  // Disable context menu & shortcuts
   useEffect(() => {
     if (!registered || submitted) return;
     const disableContext = (e) => e.preventDefault();
     const blockKeys = (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || e.key === "F12")
-        e.preventDefault();
+      if (e.ctrlKey || e.metaKey || e.altKey || e.key === "F12") e.preventDefault();
     };
     document.addEventListener("contextmenu", disableContext);
     window.addEventListener("keydown", blockKeys);
@@ -235,19 +205,59 @@ function Quiz() {
     setAnswers(updated);
   };
 
-  // UI
+  // ==================== UI ====================
 
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-600">
-        Loading quiz...
+        Loading quizzes...
+      </div>
+    );
+
+  // ✅ Multiple quiz selection screen
+  if (availableQuizzes.length > 1 && !activeQuiz && !submitted)
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-center px-6">
+        {toast && (
+          <div
+            className={`fixed top-5 right-5 px-4 py-2 rounded-lg shadow-lg text-sm font-medium z-50 ${
+              toast.type === "success"
+                ? "bg-green-600 text-white"
+                : toast.type === "error"
+                ? "bg-red-600 text-white"
+                : "bg-yellow-500 text-black"
+            }`}
+          >
+            {toast.msg}
+          </div>
+        )}
+        <h2 className="text-3xl font-bold text-teal-600">Choose a Quiz</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-3xl">
+          {availableQuizzes.map((q) => (
+            <button
+              key={q._id}
+              onClick={() => setActiveQuiz(q)}
+              className="p-5 bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg border-l-4 border-teal-500 hover:-translate-y-1 transition-all duration-300"
+            >
+              <h3 className="font-semibold text-lg text-teal-600 dark:text-teal-400">
+                {q.title}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300 text-sm mt-2 line-clamp-2">
+                {q.description || "No description available"}
+              </p>
+              <p className="text-gray-500 text-xs mt-2">
+                {q.questions?.length || 0} Questions
+              </p>
+            </button>
+          ))}
+        </div>
       </div>
     );
 
   if (!activeQuiz)
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-500">
-        No active quiz right now.
+        No active quiz available.
       </div>
     );
 
@@ -274,6 +284,19 @@ function Quiz() {
   if (!registered)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        {toast && (
+          <div
+            className={`fixed top-5 right-5 px-4 py-2 rounded-lg shadow-lg text-sm font-medium z-50 ${
+              toast.type === "success"
+                ? "bg-green-600 text-white"
+                : toast.type === "error"
+                ? "bg-red-600 text-white"
+                : "bg-yellow-500 text-black"
+            }`}
+          >
+            {toast.msg}
+          </div>
+        )}
         <h2 className="text-3xl font-bold text-teal-600 mb-3">
           {activeQuiz.title}
         </h2>
@@ -295,6 +318,19 @@ function Quiz() {
 
   return (
     <div className="min-h-screen flex items-center justify-center py-8 px-4 bg-gradient-to-br from-gray-100 to-teal-50 dark:from-gray-900 dark:to-gray-800 transition-all duration-300">
+      {toast && (
+        <div
+          className={`fixed top-5 right-5 px-4 py-2 rounded-lg shadow-lg text-sm font-medium z-50 ${
+            toast.type === "success"
+              ? "bg-green-600 text-white"
+              : toast.type === "error"
+              ? "bg-red-600 text-white"
+              : "bg-yellow-500 text-black"
+          }`}
+        >
+          {toast.msg}
+        </div>
+      )}
       <div className="w-full max-w-3xl bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 animate-fade-in">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-teal-600 dark:text-teal-400">

@@ -28,7 +28,7 @@ function AdminLayout() {
         {/* Logo Section */}
         <div>
           <div
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/admin")}
             className="flex items-center gap-2 mb-8 cursor-pointer select-none"
           >
             <img

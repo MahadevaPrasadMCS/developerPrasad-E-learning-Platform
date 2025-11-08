@@ -52,6 +52,32 @@ router.post("/upload", adminMiddleware, upload.single("file"), async (req, res) 
 });
 
 /* -------------------------------------------------------------------------- */
+/* ✏️ PUT: Edit Resource (Admin Only)                                        */
+/* -------------------------------------------------------------------------- */
+router.put("/:id", adminMiddleware, async (req, res) => {
+  try {
+    const { title, description, coinsRequired } = req.body;
+
+    const updated = await Resource.findByIdAndUpdate(
+      req.params.id,
+      {
+        title,
+        description,
+        coinsRequired: Number(coinsRequired) || 0,
+      },
+      { new: true }
+    );
+
+    if (!updated) return res.status(404).json({ message: "Resource not found" });
+
+    res.json({ message: "✅ Resource updated successfully", resource: updated });
+  } catch (err) {
+    console.error("Edit resource error:", err);
+    res.status(500).json({ message: "Failed to update resource" });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
 /* ❌ DELETE: Remove Resource (Admin Only)                                    */
 /* -------------------------------------------------------------------------- */
 router.delete("/:id", adminMiddleware, async (req, res) => {
