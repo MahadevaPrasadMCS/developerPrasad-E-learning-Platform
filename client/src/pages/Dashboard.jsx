@@ -17,17 +17,16 @@ function Dashboard() {
       logout("🚫 Your account is blocked. Contact admin.");
       navigate("/login");
     }
-  }, [user, logout, navigate]);
+  }, [user?.isBlocked, logout, navigate]);
 
   // 🔄 Fetch latest user profile (for updated coins)
   const fetchUserData = useCallback(async () => {
-    if (!user) return;
     try {
       const res = await api.get("/auth/me");
       const updated = res.data;
-      setUser(updated);
 
-      // 🔁 Sync with localStorage
+      setUser((prev) => ({ ...prev, ...updated }));
+
       const stored = JSON.parse(localStorage.getItem("auth_data") || "{}");
       if (stored.user) stored.user.coins = updated.coins;
       localStorage.setItem("auth_data", JSON.stringify(stored));
@@ -38,9 +37,12 @@ function Dashboard() {
     }
   }, [setUser, handleAuthError]);
 
+  // ✅ Run once after mount — only if logged in
   useEffect(() => {
-    fetchUserData();
-  }, [fetchUserData]);
+    if (user) {
+      fetchUserData();
+    }
+  }, [user, fetchUserData]);
 
   // 📢 Fetch Announcements
   useEffect(() => {
