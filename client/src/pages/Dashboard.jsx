@@ -9,7 +9,7 @@ function Dashboard() {
 
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // 🚫 Auto logout if blocked
   useEffect(() => {
@@ -19,33 +19,40 @@ function Dashboard() {
     }
   }, [user, logout, navigate]);
 
-  // 🔄 Fetch latest user profile (for updated coins)
-// 🔄 Fetch latest user profile (for updated coins)
-useEffect(() => {
-  const fetchUserData = async () => {
+  // 🔄 Fetch user profile (only once + optional interval refresh)
+  useEffect(() => {
     if (!user) return;
-    try {
-      const res = await api.get("/user/me");
-      const updated = res.data;
-      setUser(updated);
 
-      // 🔁 Sync with localStorage
-      const stored = JSON.parse(localStorage.getItem("auth_data") || "{}");
-      if (stored.user) stored.user.coins = updated.coins;
-      localStorage.setItem("auth_data", JSON.stringify(stored));
-    } catch (err) {
-      handleAuthError(err.response?.status, err.response?.data?.message);
-    } finally {
-      setRefreshing(false);
-    }
-  };
+    const fetchUserData = async () => {
+      try {
+        setRefreshing(true);
+        const res = await api.get("/user/me");
+        const updated = res.data;
 
-  fetchUserData();
-  // ✅ Only run when `user` changes or on initial mount
-}, [user, handleAuthError, setUser]);
+        // Only update if data actually changed
+        if (updated.coins !== user.coins) {
+          setUser(updated);
 
+          // 🔁 Sync updated coins with localStorage
+          const stored = JSON.parse(localStorage.getItem("auth_data") || "{}");
+          if (stored.user) stored.user.coins = updated.coins;
+          localStorage.setItem("auth_data", JSON.stringify(stored));
+        }
+      } catch (err) {
+        handleAuthError(err.response?.status, err.response?.data?.message);
+      } finally {
+        setRefreshing(false);
+      }
+    };
 
-  // 📢 Fetch Announcements
+    fetchUserData();
+
+    // Optional: refresh user data every 60s
+    const interval = setInterval(fetchUserData, 60000);
+    return () => clearInterval(interval);
+  }, [user?._id, user?.coins, handleAuthError, setUser]);
+
+  // 📢 Fetch announcements
   useEffect(() => {
     const fetchAnnouncements = async () => {
       try {
@@ -58,6 +65,7 @@ useEffect(() => {
         setLoading(false);
       }
     };
+
     fetchAnnouncements();
   }, [handleAuthError]);
 
