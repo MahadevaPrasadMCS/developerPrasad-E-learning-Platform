@@ -420,5 +420,39 @@ router.get("/status/me", authMiddleware, async (req, res) => {
   }
 });
 
+// 🧩 PUBLIC UPCOMING QUIZZES
+router.get("/upcoming", async (req, res) => {
+  try {
+    const now = new Date();
+    const upcoming = await Quiz.find({
+      startTime: { $gt: now },
+      status: { $in: ["draft", "scheduled"] },
+    })
+      .sort({ startTime: 1 })
+      .limit(5)
+      .select("title startTime");
+
+    if (!upcoming.length)
+      return res.json([{ title: "No upcoming quizzes", date: null }]);
+
+    res.json(
+      upcoming.map((q) => ({
+        _id: q._id,
+        title: q.title,
+        date: q.startTime
+          ? new Date(q.startTime).toLocaleDateString("en-IN", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })
+          : "TBA",
+      }))
+    );
+  } catch (err) {
+    console.error("Public upcoming quiz fetch error:", err);
+    res.status(500).json({ message: "Failed to load upcoming quizzes" });
+  }
+});
+
 
 export default router;

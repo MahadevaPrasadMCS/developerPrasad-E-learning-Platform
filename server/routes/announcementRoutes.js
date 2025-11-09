@@ -91,4 +91,28 @@ router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
+// 📢 PUBLIC ANNOUNCEMENTS (for Explore Page)
+router.get("/public", async (req, res) => {
+  try {
+    const announcements = await Announcement.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select("title date createdAt");
+
+    res.json(
+      announcements.map((a) => ({
+        _id: a._id,
+        title: a.title,
+        date: a.date
+          ? new Date(a.date).toLocaleDateString()
+          : new Date(a.createdAt).toLocaleDateString(),
+      }))
+    );
+  } catch (err) {
+    console.error("Public announcements fetch error:", err);
+    res.status(500).json({ message: "Failed to load announcements" });
+  }
+});
+
+
 export default router;

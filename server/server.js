@@ -78,6 +78,7 @@ await connectDB(); // ✅ Connect before anything else
 
 // ==================== Import Routes ====================
 import authRoutes from "./routes/authRoutes.js";
+import TutorialRoutes from "./routes/tutorialRoutes.js";  
 import quizRoutes from "./routes/quizRoutes.js";
 import leaderboardRoutes from "./routes/leaderboardRoutes.js";
 import walletRoutes from "./routes/walletRoutes.js";
@@ -95,6 +96,7 @@ import contactRoutes from "./routes/contactRoutes.js";
 
 // ==================== Use Routes ====================
 app.use("/api/auth", authRoutes);
+app.use("/api/tutorials", TutorialRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/wallet", walletRoutes);
