@@ -3,7 +3,6 @@ import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import { Trash, Edit, Clock, CheckCircle2, X } from "lucide-react";
 
-
 /* ============================================================
    QUIZ PUBLISHING CONTROLS (Reusable Component)
 ============================================================ */
@@ -30,6 +29,23 @@ function PublishControls({ quiz, onSuccess, showToast }) {
     }
   };
 
+  const unpublish = async () => {
+    try {
+      setLoading(true);
+      await api.put(`/quiz/unpublish/${quiz._id}`);
+      showToast("⏸️ Quiz unpublished successfully!", "success");
+      onSuccess();
+    } catch (err) {
+      console.error("Unpublish failed:", err);
+      showToast(
+        err.response?.data?.message || "Failed to unpublish quiz.",
+        "error"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handlePublishNow = () => {
     const start = new Date();
     const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
@@ -48,9 +64,17 @@ function PublishControls({ quiz, onSuccess, showToast }) {
   };
 
   return (
-    <div className="mt-2">
-      {!isScheduling ? (
-        <div className="flex flex-wrap gap-2">
+    <div className="mt-3 flex flex-wrap gap-2 items-center">
+      {quiz.status === "published" ? (
+        <button
+          onClick={unpublish}
+          disabled={loading}
+          className="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md shadow-sm transition-all"
+        >
+          {loading ? "Unpublishing..." : "Unpublish"}
+        </button>
+      ) : !isScheduling ? (
+        <>
           <button
             onClick={handlePublishNow}
             disabled={loading}
@@ -66,9 +90,9 @@ function PublishControls({ quiz, onSuccess, showToast }) {
           >
             <Clock size={14} /> Schedule
           </button>
-        </div>
+        </>
       ) : (
-        <div className="flex flex-wrap gap-2 items-center">
+        <>
           <input
             type="datetime-local"
             value={startTime}
@@ -94,7 +118,7 @@ function PublishControls({ quiz, onSuccess, showToast }) {
           >
             Cancel
           </button>
-        </div>
+        </>
       )}
     </div>
   );
@@ -109,7 +133,6 @@ function ManageQuiz() {
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Create form state
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -118,19 +141,14 @@ function ManageQuiz() {
     ],
   });
 
-  // Edit quiz state
   const [editQuiz, setEditQuiz] = useState(null);
-
-  // Memoized admin headers
   const adminHeaders = useMemo(() => ({ "X-Auth-Role": "admin" }), []);
 
-  // Toast utility
   const showToast = (msg, type = "info") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Fetch quizzes
   const fetchQuizzes = useCallback(async () => {
     try {
       setLoading(true);
@@ -148,7 +166,6 @@ function ManageQuiz() {
     fetchQuizzes();
   }, [fetchQuizzes]);
 
-  // Create quiz handler
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!form.title.trim()) return showToast("Title is required.", "error");
@@ -185,7 +202,6 @@ function ManageQuiz() {
     }
   };
 
-  // Delete quiz
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this quiz permanently?")) return;
     try {
@@ -198,7 +214,6 @@ function ManageQuiz() {
     }
   };
 
-  // Open edit modal
   const openEditModal = (q) => {
     const normalized = {
       ...q,
@@ -212,7 +227,6 @@ function ManageQuiz() {
     setEditQuiz(normalized);
   };
 
-  // Save updated quiz
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!editQuiz) return;
@@ -240,7 +254,6 @@ function ManageQuiz() {
   if (user?.role !== "admin")
     return <p className="text-center text-red-500 mt-10">Access denied — Admins only.</p>;
 
-  /* ---------------- RENDER SECTION ---------------- */
   return (
     <div className="p-6">
       <h2 className="text-3xl font-bold text-teal-600 mb-6">🧠 Manage Quizzes</h2>
@@ -299,6 +312,7 @@ function ManageQuiz() {
                 <Trash size={16} />
               </button>
             </div>
+
             <input
               type="text"
               placeholder="Question text"
@@ -333,6 +347,21 @@ function ManageQuiz() {
                   }}
                   className="flex-1 p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
                 />
+                {q.options.length > 2 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = [...form.questions];
+                      updated[qIdx].options.splice(oIdx, 1);
+                      if (updated[qIdx].correctAnswerIndex === oIdx)
+                        updated[qIdx].correctAnswerIndex = null;
+                      setForm({ ...form, questions: updated });
+                    }}
+                    className="text-red-500 hover:text-red-600"
+                  >
+                    <Trash size={14} />
+                  </button>
+                )}
               </div>
             ))}
 
@@ -395,12 +424,18 @@ function ManageQuiz() {
                 <h4 className="font-semibold text-teal-600 text-lg">{quiz.title}</h4>
                 <p className="text-sm text-gray-500">
                   Status:{" "}
-                  {quiz.isPublished ? (
-                    <span className="text-green-600">Published</span>
+                  {quiz.status === "published" ? (
+                    <span className="text-green-600 font-medium">Published</span>
                   ) : (
-                    <span className="text-yellow-600">Draft</span>
+                    <span className="text-yellow-600 font-medium">Draft</span>
                   )}
                 </p>
+                {quiz.startTime && quiz.endTime && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    {new Date(quiz.startTime).toLocaleString()} →{" "}
+                    {new Date(quiz.endTime).toLocaleString()}
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-3 mt-3 sm:mt-0">
