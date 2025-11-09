@@ -16,7 +16,7 @@ function Explore() {
     const fetchData = async () => {
       try {
         const [ann, tut, quiz] = await Promise.all([
-          api.get("/announcements/public"),
+          api.get("/announcements"),
           api.get("/tutorials/public"),
           api.get("/quiz/upcoming"),
         ]);
