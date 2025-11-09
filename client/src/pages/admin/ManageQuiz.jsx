@@ -20,10 +20,7 @@ function PublishControls({ quiz, onSuccess, showToast }) {
       onSuccess();
     } catch (err) {
       console.error("Publish failed:", err);
-      showToast(
-        err.response?.data?.message || "Failed to publish quiz.",
-        "error"
-      );
+      showToast(err.response?.data?.message || "Failed to publish quiz.", "error");
     } finally {
       setLoading(false);
     }
@@ -37,10 +34,7 @@ function PublishControls({ quiz, onSuccess, showToast }) {
       onSuccess();
     } catch (err) {
       console.error("Unpublish failed:", err);
-      showToast(
-        err.response?.data?.message || "Failed to unpublish quiz.",
-        "error"
-      );
+      showToast(err.response?.data?.message || "Failed to unpublish quiz.", "error");
     } finally {
       setLoading(false);
     }
@@ -313,9 +307,10 @@ function ManageQuiz() {
               </button>
             </div>
 
-            <input
-              type="text"
-              placeholder="Question text"
+            {/* Changed input → textarea */}
+            <textarea
+              placeholder="Enter your question..."
+              rows={3}
               value={q.question}
               onChange={(e) => {
                 const updated = [...form.questions];
@@ -466,7 +461,7 @@ function ManageQuiz() {
       {/* Edit Quiz Modal */}
       {editQuiz && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg w-full max-w-2xl relative">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg w-full max-w-3xl relative overflow-y-auto max-h-[90vh]">
             <button
               onClick={() => setEditQuiz(null)}
               className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
@@ -489,6 +484,44 @@ function ManageQuiz() {
                 }
                 className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
               ></textarea>
+
+              {editQuiz.questions.map((q, qIdx) => (
+                <div key={qIdx} className="border p-4 rounded-xl dark:border-gray-600 mb-3">
+                  <textarea
+                    rows={3}
+                    value={q.question}
+                    onChange={(e) => {
+                      const updated = [...editQuiz.questions];
+                      updated[qIdx].question = e.target.value;
+                      setEditQuiz({ ...editQuiz, questions: updated });
+                    }}
+                    className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 mb-2"
+                  />
+                  {q.options.map((opt, oIdx) => (
+                    <div key={oIdx} className="flex items-center gap-2 mb-2">
+                      <input
+                        type="radio"
+                        checked={q.correctAnswerIndex === oIdx}
+                        onChange={() => {
+                          const updated = [...editQuiz.questions];
+                          updated[qIdx].correctAnswerIndex = oIdx;
+                          setEditQuiz({ ...editQuiz, questions: updated });
+                        }}
+                      />
+                      <input
+                        type="text"
+                        value={opt}
+                        onChange={(e) => {
+                          const updated = [...editQuiz.questions];
+                          updated[qIdx].options[oIdx] = e.target.value;
+                          setEditQuiz({ ...editQuiz, questions: updated });
+                        }}
+                        className="flex-1 p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ))}
 
               <button
                 type="submit"
