@@ -56,9 +56,6 @@ router.get("/list", async (req, res) => {
   }
 });
 
-/* =========================================================
-3️⃣ GET ACTIVE QUIZZES (Public)
-========================================================= */
 router.get("/active", async (req, res) => {
   try {
     const now = new Date();
@@ -66,13 +63,9 @@ router.get("/active", async (req, res) => {
       status: "published",
       startTime: { $lte: now },
       endTime: { $gte: now },
-    });
-
-    if (!quizzes.length) return res.status(404).json({ message: "No active quiz right now" });
-
+    }).select("title description questions startTime endTime"); // ✅ include questions
     res.json(quizzes);
   } catch (err) {
-    console.error("Active quiz fetch error:", err);
     res.status(500).json({ message: "Failed to load active quiz" });
   }
 });

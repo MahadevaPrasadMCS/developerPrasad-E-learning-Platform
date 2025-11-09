@@ -74,32 +74,38 @@ function Quiz() {
     };
   }, [registered]);
 
-  /* 🚀 Start Quiz */
-const startQuiz = async (quiz) => {
+// ✅ Fetch full quiz before registration and fullscreen
+const handleStartQuiz = async (quizId) => {
   try {
-    if (!quiz.questions?.length) {
+    // Get complete quiz including questions
+    const { data: fullQuiz } = await api.get(`/quiz/${quizId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    // Check if quiz has questions
+    if (!fullQuiz.questions?.length) {
       showToast("⚠️ This quiz has no questions yet. Please contact admin.", "warning");
       return;
     }
 
-    // 🔹 Register user first
-    await api.post(`/quiz/register/${quiz._id}`, {}, {
+    // Register the user
+    await api.post(`/quiz/register/${quizId}`, {}, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
     showToast("Registered successfully!", "success");
 
-    setActiveQuiz(quiz);
-    setAnswers(new Array(quiz.questions.length).fill(null));
+    setActiveQuiz(fullQuiz);
+    setAnswers(new Array(fullQuiz.questions.length).fill(null));
     await document.documentElement.requestFullscreen();
     setRegistered(true);
     showToast("Quiz started in fullscreen mode!", "success");
-  } catch (err) {
-    console.error("Registration failed:", err);
-    showToast("Registration failed. Try again later.", "error");
+
+  } catch (error) {
+    console.error("Start quiz error:", error);
+    showToast("Unable to start the quiz. Try again later.", "error");
   }
 };
-
 
   /* 📝 Submit Quiz */
   const handleSubmit = useCallback(
@@ -226,7 +232,7 @@ const startQuiz = async (quiz) => {
                 </div>
               ) : (
                 <button
-                  onClick={() => startQuiz(q)}
+                  onClick={() => handleStartQuiz(quiz._id)}
                   className="w-full mt-2 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium text-sm transition-all shadow-md hover:shadow-lg"
                 >
                   Start Quiz
