@@ -341,7 +341,7 @@ router.put("/unpublish/:id", authMiddleware, adminMiddleware, async (req, res) =
 
 /* =========================================================
 1️⃣2️⃣ QUIZ ANALYTICS (Admin)
-========================================================= */
+============================================================ */
 router.get("/:id/analytics", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -350,26 +350,104 @@ router.get("/:id/analytics", authMiddleware, adminMiddleware, async (req, res) =
       return res.status(400).json({ message: "Invalid quiz ID" });
 
     const quiz = await Quiz.findById(id);
-    if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+    if (!quiz)
+      return res.status(404).json({ message: "Quiz not found" });
 
     const attempts = await QuizAttempt.find({ quizId: id });
     if (!attempts.length)
-      return res.json({ totalAttempts: 0, averageScore: 0, successRate: 0, topPerformers: [] });
+      return res.json({
+        totalUsers: 0,
+        averageScore: 0,
+        successRate: 0,
+        topPerformers: [],
+      });
 
-    const totalAttempts = attempts.length;
-    const avgScore = attempts.reduce((sum, a) => sum + a.score, 0) / totalAttempts;
-    const successRate =
-      (attempts.filter((a) => a.score >= quiz.questions.length / 2).length / totalAttempts) * 100;
+    const totalQuestions = quiz.questions.length;
 
-    const topPerformers = attempts
-      .sort((a, b) => b.score - a.score)
+    // 🧠 Group attempts by user (take best attempt)
+    const userMap = new Map();
+    attempts.forEach((a) => {
+      const userId = a.userId?.toString() || a.userName || "anonymous";
+      const percent = ((a.score || 0) / totalQuestions) * 100;
+
+      if (!userMap.has(userId) || userMap.get(userId).percent < percent) {
+        userMap.set(userId, {
+          name: a.userName || "Anonymous",
+          percent,
+        });
+      }
+    });
+
+    const users = Array.from(userMap.values());
+    const totalUsers = users.length;
+
+    const totalPercent = users.reduce((sum, u) => sum + u.percent, 0);
+    const averageScore = totalPercent / totalUsers;  // mean user percentage
+    const successRate = averageScore;                // overall collective performance
+
+    const topPerformers = users
+      .sort((a, b) => b.percent - a.percent)
       .slice(0, 5)
-      .map((a) => ({ name: a.userName || "Anonymous", score: a.score }));
+      .map((u) => ({
+        name: u.name,
+        score: u.percent.toFixed(2),
+      }));
 
-    res.json({ totalAttempts, averageScore: avgScore, successRate, topPerformers });
+    res.json({
+      totalUsers,
+      averageScore,
+      successRate,
+      topPerformers,
+    });
   } catch (err) {
     console.error("Analytics error:", err);
     res.status(500).json({ message: "Server error fetching quiz analytics" });
+  }
+});
+
+/* =========================================================
+1️⃣3️⃣ USER QUIZ STATUS (Shows which quizzes are attempted or available)
+============================================================ */
+router.get("/status/me", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Fetch all published quizzes
+    const quizzes = await Quiz.find({ status: "published" }).select("title description questions");
+
+    // Fetch user's attempts
+    const attempts = await QuizAttempt.find({ userId }).select("quizId score totalQuestions createdAt");
+
+    // Map quiz -> attempt status
+    const statusList = quizzes.map((quiz) => {
+      const attempt = attempts.find((a) => String(a.quizId) === String(quiz._id));
+
+      if (attempt) {
+        const accuracy = ((attempt.score / attempt.totalQuestions) * 100).toFixed(2);
+        return {
+          _id: quiz._id,
+          title: quiz.title,
+          description: quiz.description,
+          attempted: true,
+          score: attempt.score,
+          totalQuestions: attempt.totalQuestions,
+          accuracy,
+          attemptedAt: attempt.createdAt,
+        };
+      } else {
+        return {
+          _id: quiz._id,
+          title: quiz.title,
+          description: quiz.description,
+          attempted: false,
+        };
+      }
+    });
+
+    res.json(statusList);
+  } catch (err) {
+    console.error("Status fetch error:", err);
+    res.status(500).json({ message: "Failed to fetch quiz statuses" });
   }
 });
 
