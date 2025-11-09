@@ -26,20 +26,38 @@ const allowedOrigins = [
 ];
 
 // ✅ CORS Configuration (clean & Render-safe)
+// ✅ CORS Configuration (Improved for Render + Debug Logs)
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
+      const allowedOrigins = [
+        "http://localhost:3000",
+        "https://youlearnhub-dp.vercel.app",
+        "https://youlearnhub.vercel.app",
+        "https://youlearnhub.com",
+      ];
+
+      // Allow requests with no origin (like mobile, Postman, Render health checks)
+      if (!origin) {
+        console.log("🌍 CORS allowed: internal or server-to-server request");
+        return callback(null, true);
       }
+
+      if (allowedOrigins.includes(origin)) {
+        console.log(`✅ CORS allowed origin: ${origin}`);
+        return callback(null, true);
+      }
+
+      console.warn(`🚫 CORS blocked origin: ${origin}`);
+      return callback(new Error("Not allowed by CORS"));
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Auth-Role"],
     credentials: true,
+    optionsSuccessStatus: 200, // ensures success on preflight OPTIONS
   })
 );
+
 
 // ✅ Core middlewares
 app.use(express.json());
