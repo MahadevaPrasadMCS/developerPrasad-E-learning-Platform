@@ -19,38 +19,41 @@ function Dashboard() {
     }
   }, [user, logout, navigate]);
 
-  // 🔄 Fetch user profile (only once + optional interval refresh)
-  useEffect(() => {
-    if (!user) return;
+// 🔄 Fetch user profile (only once + optional interval refresh)
+useEffect(() => {
+  if (!user) return;
 
-    const fetchUserData = async () => {
-      try {
-        setRefreshing(true);
-        const res = await api.get("/user/me");
-        const updated = res.data;
+  const fetchUserData = async () => {
+    try {
+      setRefreshing(true);
+      const res = await api.get("/user/me");
+      const updated = res.data;
 
-        // Only update if data actually changed
-        if (updated.coins !== user.coins) {
-          setUser(updated);
+      // ✅ Only update if data actually changed
+      if (updated.coins !== user.coins) {
+        setUser(updated);
 
-          // 🔁 Sync updated coins with localStorage
-          const stored = JSON.parse(localStorage.getItem("auth_data") || "{}");
-          if (stored.user) stored.user.coins = updated.coins;
-          localStorage.setItem("auth_data", JSON.stringify(stored));
-        }
-      } catch (err) {
-        handleAuthError(err.response?.status, err.response?.data?.message);
-      } finally {
-        setRefreshing(false);
+        // 🔁 Sync updated coins with localStorage
+        const stored = JSON.parse(localStorage.getItem("auth_data") || "{}");
+        if (stored.user) stored.user.coins = updated.coins;
+        localStorage.setItem("auth_data", JSON.stringify(stored));
       }
-    };
+    } catch (err) {
+      handleAuthError(err.response?.status, err.response?.data?.message);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
-    fetchUserData();
+  fetchUserData();
 
-    // Optional: refresh user data every 60s
-    const interval = setInterval(fetchUserData, 60000);
-    return () => clearInterval(interval);
-  }, [user?._id, user?.coins, handleAuthError, setUser]);
+  // Optional: refresh every 60s
+  const interval = setInterval(fetchUserData, 60000);
+  return () => clearInterval(interval);
+
+// ✅ Include user (not specific properties) — useEffect will only re-run if user object reference changes.
+}, [user, handleAuthError, setUser]);
+
 
   // 📢 Fetch announcements
   useEffect(() => {
