@@ -3,9 +3,8 @@ import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 
 function Quiz() {
-  const { user, token } = useAuth();
+  const { token } = useAuth(); // ✅ removed unused 'user'
 
-  const [availableQuizzes, setAvailableQuizzes] = useState([]);
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [answers, setAnswers] = useState([]);
   const [index, setIndex] = useState(0);
@@ -21,7 +20,8 @@ function Quiz() {
   const timerRef = useRef(null);
   const fullscreenTimeout = useRef(null);
 
-  const showToast = (msg, type = "info") => console.log(`[${type.toUpperCase()}] ${msg}`);
+  const showToast = (msg, type = "info") =>
+    console.log(`[${type.toUpperCase()}] ${msg}`);
 
   /* 🧠 Fetch Quizzes with Attempt Info */
   useEffect(() => {
@@ -55,7 +55,6 @@ function Quiz() {
       }
     };
 
-    // Disable common actions
     ["contextmenu", "copy", "cut", "paste"].forEach((evt) =>
       document.addEventListener(evt, prevent)
     );
@@ -70,27 +69,6 @@ function Quiz() {
       document.onselectstart = null;
     };
   }, [registered]);
-
-  /* 🚨 Fullscreen Exit Watcher */
-  useEffect(() => {
-    if (!registered) return;
-
-    const handleExit = () => {
-      if (!document.fullscreenElement && !autoSubmitted && !submitted) {
-        setFullscreenWarning(true);
-        fullscreenTimeout.current = setTimeout(() => {
-          setFullscreenWarning(false);
-          handleSubmit(true);
-        }, 5000);
-      } else {
-        clearTimeout(fullscreenTimeout.current);
-        setFullscreenWarning(false);
-      }
-    };
-
-    document.addEventListener("fullscreenchange", handleExit);
-    return () => document.removeEventListener("fullscreenchange", handleExit);
-  }, [registered, submitted, autoSubmitted]);
 
   /* 🚀 Start Quiz */
   const startQuiz = async (quiz) => {
@@ -123,7 +101,7 @@ function Quiz() {
         setResult(res.data);
         setSubmitted(true);
         setAutoSubmitted(auto);
-        await document.exitFullscreen();
+        if (document.fullscreenElement) await document.exitFullscreen();
       } catch (err) {
         console.error("Submit error:", err);
         showToast("Submission failed", "error");
@@ -133,6 +111,27 @@ function Quiz() {
     },
     [activeQuiz, answers, token]
   );
+
+  /* 🚨 Fullscreen Exit Watcher */
+  useEffect(() => {
+    if (!registered) return;
+
+    const handleExit = () => {
+      if (!document.fullscreenElement && !autoSubmitted && !submitted) {
+        setFullscreenWarning(true);
+        fullscreenTimeout.current = setTimeout(() => {
+          setFullscreenWarning(false);
+          handleSubmit(true);
+        }, 5000);
+      } else {
+        clearTimeout(fullscreenTimeout.current);
+        setFullscreenWarning(false);
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleExit);
+    return () => document.removeEventListener("fullscreenchange", handleExit);
+  }, [registered, submitted, autoSubmitted, handleSubmit]); // ✅ fixed dependency
 
   /* ⏱ Timer Logic */
   useEffect(() => {
@@ -217,7 +216,10 @@ function Quiz() {
             Correct: {result.score}/{result.totalQuestions}
           </p>
           <p className="text-gray-700 dark:text-gray-200 text-sm sm:text-base">
-            Accuracy: {result.accuracy || ((result.score / result.totalQuestions) * 100).toFixed(2)}%
+            Accuracy:{" "}
+            {result.accuracy ||
+              ((result.score / result.totalQuestions) * 100).toFixed(2)}
+            %
           </p>
           <p className="text-gray-700 dark:text-gray-200 text-sm sm:text-base">
             Coins Earned: 🪙 {result.earnedCoins}
