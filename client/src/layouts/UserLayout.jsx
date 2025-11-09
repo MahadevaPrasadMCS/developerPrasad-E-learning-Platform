@@ -17,54 +17,52 @@ function UserLayout() {
 
   const handleLogout = () => logout(user?.role);
 
-  // ✨ Modernized NavItem Component
-  const NavItem = ({ to, label }) => (
+  /* 🧭 Card-like animated NavItem */
+  const NavItem = ({ to, label, icon: Icon }) => (
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 group
+        `relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium 
+        transform transition-all duration-300 hover:scale-[1.04] hover:shadow-md 
         ${
           isActive
-            ? "text-teal-600 dark:text-teal-400 bg-teal-100/60 dark:bg-teal-900/40 font-semibold"
-            : "text-gray-700 dark:text-gray-200 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50/60 dark:hover:bg-gray-800/60"
+            ? "bg-gradient-to-r from-teal-500/20 to-teal-600/10 text-teal-700 dark:text-teal-300 shadow-sm"
+            : "text-gray-700 dark:text-gray-200 hover:bg-gray-100/70 dark:hover:bg-gray-800/70"
         }`
       }
       onClick={() => setMenuOpen(false)}
     >
-      {label}
-      <span
-        className={`absolute bottom-1 left-1/2 -translate-x-1/2 h-[2px] w-0 bg-teal-500 dark:bg-teal-400 rounded-full transition-all duration-300 group-hover:w-3/4 ${
-          window.location.pathname === to ? "w-3/4" : ""
-        }`}
-      ></span>
+      {Icon && <Icon size={15} className="text-teal-500" />}
+      <span>{label}</span>
     </NavLink>
   );
 
+  // 🗂️ Organized groups with more meaningful titles
   const groupedLinks = [
     {
-      label: "Your Learning",
+      label: "📘 Learn & Practice",
       items: [
         { label: "Tutorials", to: "/tutorials" },
         { label: "Learning Resources", to: "/learn" },
-        { label: "Quiz", to: "/quiz" },
+        { label: "Quizzes", to: "/quiz" },
       ],
     },
     {
-      label: "Community",
+      label: "🌍 Community & Growth",
       items: [
         { label: "Leaderboard", to: "/leaderboard" },
-        { label: "Community", to: "/community" },
+        { label: "Discussion Forum", to: "/community" },
       ],
     },
     {
-      label: "Resources",
+      label: "🧰 Tools & Resources",
       items: [
         { label: "Store", to: "/store" },
         { label: "Announcements", to: "/announcements" },
       ],
     },
     {
-      label: "Profile",
+      label: "👤 Your Space",
       items: [
         { label: "Dashboard", to: "/dashboard" },
         { label: "Wallet", to: "/wallet" },
@@ -74,12 +72,12 @@ function UserLayout() {
 
   const moreLinks = [
     { label: "Explore", to: "/explore" },
-    { label: "About", to: "/about" },
+    { label: "About Us", to: "/about" },
     { label: "Contact", to: "/contact" },
-    { label: "Support", to: "/support" },
+    { label: "Support Center", to: "/support" },
   ];
 
-  // ✅ Cleaned dropdown timer ref usage
+  /* ⏱ Clean dropdown cleanup */
   useEffect(() => {
     const timer = dropdownTimer.current;
     return () => {
@@ -92,7 +90,7 @@ function UserLayout() {
       {/* 🌙 Navbar */}
       <nav className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/90 backdrop-blur-lg shadow-md border-b border-gray-100 dark:border-gray-800 transition-all">
         <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-3">
-          {/* Logo */}
+          {/* 🔹 Logo */}
           <div
             onClick={() => navigate("/")}
             className="flex items-center gap-2 cursor-pointer select-none"
@@ -102,24 +100,22 @@ function UserLayout() {
               alt="logo"
               className="h-9 w-9 rounded-full"
             />
-            <h1 className="text-xl font-semibold text-teal-600 dark:text-teal-400 tracking-wide">
+            <h1 className="text-xl font-bold text-teal-600 dark:text-teal-400 tracking-wide">
               YouLearnHub
             </h1>
           </div>
 
-          {/* Desktop Menu */}
+          {/* 🧭 Desktop Menu */}
           <ul className="hidden md:flex items-center gap-3">
             {!token ? (
               <>
                 <NavItem to="/" label="Home" />
-
-                {/* Visit Dropdown */}
                 <div
                   className="relative group"
                   onMouseEnter={() => {
                     if (dropdownTimer.current)
                       clearTimeout(dropdownTimer.current);
-                    setDropdown("more");
+                    setDropdown("visit");
                   }}
                   onMouseLeave={() => {
                     dropdownTimer.current = setTimeout(
@@ -130,16 +126,13 @@ function UserLayout() {
                 >
                   <button
                     className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                      dropdown === "more"
+                      dropdown === "visit"
                         ? "text-teal-600 dark:text-teal-400 bg-teal-100/60 dark:bg-teal-900/40"
                         : "text-gray-700 dark:text-gray-200 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50/60 dark:hover:bg-gray-800/60"
                     }`}
-                    onClick={() =>
-                      setDropdown(dropdown === "more" ? null : "more")
-                    }
                   >
                     Visit
-                    {dropdown === "more" ? (
+                    {dropdown === "visit" ? (
                       <ChevronUp size={14} />
                     ) : (
                       <ChevronDown size={14} />
@@ -147,8 +140,8 @@ function UserLayout() {
                   </button>
 
                   <div
-                    className={`absolute left-0 mt-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 min-w-[160px] backdrop-blur-md transition-all duration-200 ${
-                      dropdown === "more"
+                    className={`absolute left-0 mt-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 min-w-[180px] backdrop-blur-md transition-all duration-200 grid gap-1 ${
+                      dropdown === "visit"
                         ? "opacity-100 translate-y-0 pointer-events-auto"
                         : "opacity-0 translate-y-1 pointer-events-none"
                     }`}
@@ -185,9 +178,6 @@ function UserLayout() {
                         ? "text-teal-600 dark:text-teal-400 bg-teal-100/60 dark:bg-teal-900/40"
                         : "text-gray-700 dark:text-gray-200 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50/60 dark:hover:bg-gray-800/60"
                     }`}
-                    onClick={() =>
-                      setDropdown(dropdown === idx ? null : idx)
-                    }
                   >
                     {group.label}
                     {dropdown === idx ? (
@@ -198,7 +188,7 @@ function UserLayout() {
                   </button>
 
                   <div
-                    className={`absolute left-0 mt-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 min-w-[180px] backdrop-blur-md transition-all duration-200 ${
+                    className={`absolute left-0 mt-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 min-w-[200px] backdrop-blur-md transition-all duration-200 grid gap-2 ${
                       dropdown === idx
                         ? "opacity-100 translate-y-0 pointer-events-auto"
                         : "opacity-0 translate-y-1 pointer-events-none"
@@ -212,35 +202,36 @@ function UserLayout() {
               ))
             )}
 
-            {/* Theme Toggle */}
+            {/* 🌞 Theme Toggle */}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+              title="Toggle theme"
             >
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
 
-            {/* Logout */}
+            {/* 🚪 Logout */}
             {token && (
               <button
                 onClick={handleLogout}
-                className="bg-teal-500 hover:bg-teal-600 text-white px-3 py-1.5 rounded-lg text-sm shadow-md transition-transform hover:scale-105"
+                className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-3 py-1.5 rounded-lg text-sm shadow-md transition-transform hover:scale-105"
               >
                 Logout
               </button>
             )}
           </ul>
 
-          {/* Mobile Menu Toggle */}
+          {/* 📱 Mobile Menu Toggle */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+            className="md:hidden p-2 rounded hover:bg-blue-100 dark:hover:bg-gray-800 transition"
           >
             {menuOpen ? "✖" : "☰"}
           </button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* 📱 Mobile Menu */}
         {menuOpen && (
           <div className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-3 space-y-2 animate-fade-in">
             {!token ? (
@@ -270,7 +261,7 @@ function UserLayout() {
             {token && (
               <button
                 onClick={handleLogout}
-                className="w-full bg-teal-500 hover:bg-teal-600 text-white py-2 rounded-md text-sm"
+                className="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white py-2 rounded-md text-sm shadow-md"
               >
                 Logout
               </button>
@@ -279,7 +270,7 @@ function UserLayout() {
         )}
       </nav>
 
-      {/* Main Content */}
+      {/* 🌿 Page Content */}
       <main className="flex-grow p-4 md:p-6 bg-gray-50 dark:bg-gray-900 transition">
         <Outlet />
       </main>
