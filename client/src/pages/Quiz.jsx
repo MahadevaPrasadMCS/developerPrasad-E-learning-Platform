@@ -75,28 +75,31 @@ function Quiz() {
   }, [registered]);
 
   /* 🚀 Start Quiz */
-  const startQuiz = async (quiz) => {
-    if (!quiz.questions || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+const startQuiz = async (quiz) => {
+  try {
+    if (!quiz.questions?.length) {
       showToast("⚠️ This quiz has no questions yet. Please contact admin.", "warning");
       return;
     }
 
-    if (quiz.attempted) {
-      setResult({
-        score: quiz.score,
-        totalQuestions: quiz.totalQuestions,
-        accuracy: ((quiz.score / quiz.totalQuestions) * 100).toFixed(2),
-        earnedCoins: quiz.earnedCoins ?? quiz.score * 10,
-      });
-      return;
-    }
+    // 🔹 Register user first
+    await api.post(`/quiz/register/${quiz._id}`, {}, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    showToast("Registered successfully!", "success");
 
     setActiveQuiz(quiz);
     setAnswers(new Array(quiz.questions.length).fill(null));
     await document.documentElement.requestFullscreen();
     setRegistered(true);
     showToast("Quiz started in fullscreen mode!", "success");
-  };
+  } catch (err) {
+    console.error("Registration failed:", err);
+    showToast("Registration failed. Try again later.", "error");
+  }
+};
+
 
   /* 📝 Submit Quiz */
   const handleSubmit = useCallback(
