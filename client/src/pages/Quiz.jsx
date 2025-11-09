@@ -21,10 +21,12 @@ function Quiz() {
   const timerRef = useRef(null);
   const fullscreenTimeout = useRef(null);
 
-  const showToast = (msg, type = "info") =>
+  const showToast = (msg, type = "info") => {
     console.log(`[${type.toUpperCase()}] ${msg}`);
+    alert(msg);
+  };
 
-  /* 🧠 Fetch Quizzes with Attempt Info */
+  /* 🧠 Fetch quizzes with attempt info */
   useEffect(() => {
     (async () => {
       try {
@@ -34,7 +36,8 @@ function Quiz() {
         setQuizStatus(res.data || []);
         setLoading(false);
       } catch (err) {
-        console.error("Failed to fetch status", err);
+        console.error("Failed to fetch quiz status:", err);
+        showToast("Failed to load quizzes. Please try again later.", "error");
         setLoading(false);
       }
     })();
@@ -73,6 +76,11 @@ function Quiz() {
 
   /* 🚀 Start Quiz */
   const startQuiz = async (quiz) => {
+    if (!quiz.questions || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+      showToast("⚠️ This quiz has no questions yet. Please contact admin.", "warning");
+      return;
+    }
+
     if (quiz.attempted) {
       setResult({
         score: quiz.score,
@@ -87,10 +95,10 @@ function Quiz() {
     setAnswers(new Array(quiz.questions.length).fill(null));
     await document.documentElement.requestFullscreen();
     setRegistered(true);
-    showToast("Quiz started in fullscreen", "success");
+    showToast("Quiz started in fullscreen mode!", "success");
   };
 
-  /* 📝 Submit Quiz + Fetch Analytics */
+  /* 📝 Submit Quiz */
   const handleSubmit = useCallback(
     async (auto = false) => {
       try {
@@ -99,11 +107,12 @@ function Quiz() {
           { answers },
           { headers: { Authorization: `Bearer ${token}` } }
         );
+
         setResult(res.data);
         setSubmitted(true);
         setAutoSubmitted(auto);
 
-        // 🎯 Fetch average & success rate
+        // 🎯 Fetch quiz analytics
         try {
           const analyticsRes = await api.get(`/quiz/${activeQuiz._id}/analytics`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -114,13 +123,13 @@ function Quiz() {
             successRate: analyticsRes.data.successRate?.toFixed(2),
           }));
         } catch (err) {
-          console.warn("Analytics fetch failed after submission");
+          console.warn("Analytics fetch failed:", err.message);
         }
 
         if (document.fullscreenElement) await document.exitFullscreen();
       } catch (err) {
         console.error("Submit error:", err);
-        showToast("Submission failed", "error");
+        showToast("Submission failed. Try again.", "error");
       } finally {
         clearInterval(timerRef.current);
       }
@@ -172,7 +181,7 @@ function Quiz() {
     return () => clearInterval(timerRef.current);
   }, [registered, index, activeQuiz, submitted, handleSubmit]);
 
-  /* 🧱 UI Rendering */
+  /* 🧱 Loading State */
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-600 text-base sm:text-lg">
@@ -180,7 +189,7 @@ function Quiz() {
       </div>
     );
 
-  // 🧭 Quiz List
+  /* 🧭 Quiz List */
   if (!activeQuiz && !result)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-gradient-to-br from-teal-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -210,10 +219,7 @@ function Quiz() {
               {q.attempted ? (
                 <div className="flex items-center gap-2 text-green-400 font-medium text-sm">
                   <CheckCircle2 size={16} />
-                  Submitted —{" "}
-                  <span className="ml-1">
-                    Score: {q.score}/{q.totalQuestions}
-                  </span>
+                  Submitted — <span className="ml-1">Score: {q.score}/{q.totalQuestions}</span>
                 </div>
               ) : (
                 <button
@@ -229,22 +235,17 @@ function Quiz() {
       </div>
     );
 
-  // 🎯 Result
+  /* 🎯 Result */
   if (result)
     return (
       <div className="min-h-screen flex items-center justify-center p-6 text-center bg-gradient-to-br from-teal-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl max-w-md w-full">
-          <h2 className="text-2xl font-bold text-teal-600 mb-3">
-            Your Result 🎯
-          </h2>
+          <h2 className="text-2xl font-bold text-teal-600 mb-3">Your Result 🎯</h2>
           <p className="text-gray-700 dark:text-gray-200 text-base">
             Correct: {result.score}/{result.totalQuestions}
           </p>
           <p className="text-gray-700 dark:text-gray-200 text-base">
-            Accuracy:{" "}
-            {result.accuracy ||
-              ((result.score / result.totalQuestions) * 100).toFixed(2)}
-            %
+            Accuracy: {result.accuracy || ((result.score / result.totalQuestions) * 100).toFixed(2)}%
           </p>
           <p className="text-gray-700 dark:text-gray-200 text-base">
             Coins Earned: 🪙 {result.earnedCoins}
@@ -252,14 +253,8 @@ function Quiz() {
 
           {result.averageScore && (
             <div className="mt-3 border-t border-gray-300 dark:border-gray-600 pt-2 text-sm text-gray-500 dark:text-gray-400">
-              Avg Score:{" "}
-              <span className="font-semibold text-teal-500">
-                {result.averageScore}%
-              </span>{" "}
-              | Success Rate:{" "}
-              <span className="font-semibold text-green-500">
-                {result.successRate}%
-              </span>
+              Avg Score: <span className="font-semibold text-teal-500">{result.averageScore}%</span> | 
+              Success Rate: <span className="font-semibold text-green-500">{result.successRate}%</span>
             </div>
           )}
 
@@ -270,7 +265,15 @@ function Quiz() {
       </div>
     );
 
-  // 🧩 Quiz UI
+  /* 🧩 Defensive Guard */
+  if (!activeQuiz?.questions || activeQuiz.questions.length === 0)
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-600 dark:text-gray-300">
+        Quiz data unavailable. Please try again later.
+      </div>
+    );
+
+  /* 🧩 Quiz UI */
   const q = activeQuiz.questions[index];
   const progress = ((index + 1) / activeQuiz.questions.length) * 100;
 
@@ -280,8 +283,7 @@ function Quiz() {
         <div className="fixed inset-0 bg-black/70 flex flex-col items-center justify-center text-white text-center px-6 z-50">
           <h2 className="text-lg sm:text-2xl mb-2">⚠️ Fullscreen Exited</h2>
           <p className="text-sm sm:text-base">
-            Please re-enter fullscreen within 5 seconds or quiz will be
-            auto-submitted.
+            Please re-enter fullscreen within 5 seconds or the quiz will be auto-submitted.
           </p>
         </div>
       )}
@@ -291,19 +293,20 @@ function Quiz() {
           <h2 className="text-base sm:text-xl font-bold text-teal-600 dark:text-teal-400">
             {activeQuiz.title}
           </h2>
-          <p className="font-semibold text-sm sm:text-base text-red-500">
-            ⏱ {timeLeft}s
-          </p>
+          <p className="font-semibold text-sm sm:text-base text-red-500">⏱ {timeLeft}s</p>
         </div>
+
         <div className="w-full bg-gray-200 h-2 rounded-full mb-4 overflow-hidden">
           <div
             className="h-2 bg-teal-500 transition-all duration-300"
             style={{ width: `${progress}%` }}
           ></div>
         </div>
+
         <h3 className="text-sm sm:text-lg font-semibold mb-3 text-gray-800 dark:text-gray-100">
           {q.question}
         </h3>
+
         <div className="space-y-2 sm:space-y-3">
           {q.options.map((opt, i) => (
             <button
@@ -323,6 +326,7 @@ function Quiz() {
             </button>
           ))}
         </div>
+
         <div className="flex justify-end mt-5">
           <button
             onClick={() => {

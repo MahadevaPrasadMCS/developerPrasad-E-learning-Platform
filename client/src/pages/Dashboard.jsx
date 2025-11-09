@@ -20,27 +20,30 @@ function Dashboard() {
   }, [user, logout, navigate]);
 
   // 🔄 Fetch latest user profile (for updated coins)
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (!user) return;
-      try {
-        const res = await api.get("/user/me");
-        const updated = res.data;
-        setUser(updated);
+// 🔄 Fetch latest user profile (for updated coins)
+useEffect(() => {
+  const fetchUserData = async () => {
+    if (!user) return;
+    try {
+      const res = await api.get("/user/me");
+      const updated = res.data;
+      setUser(updated);
 
-        // 🔁 Sync with localStorage
-        const stored = JSON.parse(localStorage.getItem("auth_data") || "{}");
-        if (stored.user) stored.user.coins = updated.coins;
-        localStorage.setItem("auth_data", JSON.stringify(stored));
-      } catch (err) {
-        handleAuthError(err.response?.status, err.response?.data?.message);
-      } finally {
-        setRefreshing(false);
-      }
-    };
+      // 🔁 Sync with localStorage
+      const stored = JSON.parse(localStorage.getItem("auth_data") || "{}");
+      if (stored.user) stored.user.coins = updated.coins;
+      localStorage.setItem("auth_data", JSON.stringify(stored));
+    } catch (err) {
+      handleAuthError(err.response?.status, err.response?.data?.message);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
-    fetchUserData();
-  }); // fetch on mount
+  fetchUserData();
+  // ✅ Only run when `user` changes or on initial mount
+}, [user, handleAuthError, setUser]);
+
 
   // 📢 Fetch Announcements
   useEffect(() => {
