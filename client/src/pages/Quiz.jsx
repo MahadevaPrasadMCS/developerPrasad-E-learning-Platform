@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
+import { CheckCircle2, PlayCircle } from "lucide-react";
 
 function Quiz() {
-  const { token } = useAuth(); // ✅ removed unused 'user'
+  const { token } = useAuth();
 
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [answers, setAnswers] = useState([]);
@@ -39,7 +40,7 @@ function Quiz() {
     })();
   }, [token]);
 
-  /* 🚫 Security & Anti-Cheat Setup */
+  /* 🚫 Security Setup */
   useEffect(() => {
     if (!registered) return;
 
@@ -131,9 +132,9 @@ function Quiz() {
 
     document.addEventListener("fullscreenchange", handleExit);
     return () => document.removeEventListener("fullscreenchange", handleExit);
-  }, [registered, submitted, autoSubmitted, handleSubmit]); // ✅ fixed dependency
+  }, [registered, submitted, autoSubmitted, handleSubmit]);
 
-  /* ⏱ Timer Logic */
+  /* ⏱ Timer */
   useEffect(() => {
     if (!registered || submitted) return;
 
@@ -166,34 +167,39 @@ function Quiz() {
   // 🧭 Quiz List
   if (!activeQuiz && !result)
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
-        <h2 className="text-2xl sm:text-3xl font-bold text-teal-600 mb-4">
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-gradient-to-br from-teal-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        <h2 className="text-3xl font-bold text-teal-600 mb-8 text-center">
           Choose a Quiz
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-3xl">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-4xl">
           {quizStatus.map((q) => (
             <div
               key={q._id}
-              className={`p-5 rounded-xl shadow-md ${
+              className={`p-5 sm:p-6 rounded-xl shadow-md border transition-all duration-300 hover:shadow-xl ${
                 q.attempted
-                  ? "bg-gray-100 dark:bg-gray-800 border-l-4 border-green-500"
-                  : "bg-white dark:bg-gray-700 border-l-4 border-teal-500"
+                  ? "bg-gray-900 border-green-600"
+                  : "bg-gray-800 border-teal-500 hover:border-teal-400"
               }`}
             >
-              <h3 className="font-semibold text-lg sm:text-xl text-teal-600 dark:text-teal-400">
-                {q.title}
-              </h3>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-3">
-                {q.description}
+              <div className="flex items-start justify-between mb-3">
+                <h3 className="font-semibold text-lg text-white flex items-center gap-2">
+                  <PlayCircle className="text-teal-400" size={20} />
+                  {q.title}
+                </h3>
+              </div>
+              <p className="text-gray-300 text-sm mb-4 leading-relaxed">
+                {q.description || "No description available."}
               </p>
+
               {q.attempted ? (
-                <p className="text-green-600 font-medium text-sm sm:text-base">
-                  ✅ Submitted — Score: {q.score}/{q.totalQuestions}
-                </p>
+                <div className="flex items-center gap-2 text-green-400 font-medium text-sm">
+                  <CheckCircle2 size={16} />
+                  Submitted — <span className="ml-1">Score: {q.score}/{q.totalQuestions}</span>
+                </div>
               ) : (
                 <button
                   onClick={() => startQuiz(q)}
-                  className="px-4 py-2 sm:px-5 sm:py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm sm:text-base shadow-md"
+                  className="w-full mt-2 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium text-sm transition-all shadow-md hover:shadow-lg"
                 >
                   Start Quiz
                 </button>
@@ -207,24 +213,24 @@ function Quiz() {
   // 🎯 Result
   if (result)
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 text-center">
-        <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-xl max-w-md w-full">
-          <h2 className="text-xl sm:text-2xl font-bold text-teal-600 mb-3">
+      <div className="min-h-screen flex items-center justify-center p-6 text-center bg-gradient-to-br from-teal-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl max-w-md w-full">
+          <h2 className="text-2xl font-bold text-teal-600 mb-3">
             Your Result 🎯
           </h2>
-          <p className="text-gray-700 dark:text-gray-200 text-sm sm:text-base">
+          <p className="text-gray-700 dark:text-gray-200 text-base">
             Correct: {result.score}/{result.totalQuestions}
           </p>
-          <p className="text-gray-700 dark:text-gray-200 text-sm sm:text-base">
+          <p className="text-gray-700 dark:text-gray-200 text-base">
             Accuracy:{" "}
             {result.accuracy ||
               ((result.score / result.totalQuestions) * 100).toFixed(2)}
             %
           </p>
-          <p className="text-gray-700 dark:text-gray-200 text-sm sm:text-base">
+          <p className="text-gray-700 dark:text-gray-200 text-base">
             Coins Earned: 🪙 {result.earnedCoins}
           </p>
-          <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm mt-2">
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
             New Balance: {result.newBalance ?? "—"}
           </p>
         </div>
@@ -260,7 +266,7 @@ function Quiz() {
             style={{ width: `${progress}%` }}
           ></div>
         </div>
-        <h3 className="text-sm sm:text-lg font-semibold mb-3">
+        <h3 className="text-sm sm:text-lg font-semibold mb-3 text-gray-800 dark:text-gray-100">
           {q.question}
         </h3>
         <div className="space-y-2 sm:space-y-3">
