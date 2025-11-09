@@ -372,27 +372,35 @@ router.get("/:id/analytics", authMiddleware, adminMiddleware, async (req, res) =
 });
 
 /* =========================================================
-1️⃣3️⃣ USER QUIZ STATUS
+1️⃣3️⃣ USER QUIZ STATUS (Now includes totalQuestions + earnedCoins)
 ========================================================= */
 router.get("/status/me", authMiddleware, async (req, res) => {
   try {
     const userId = req.user._id;
-    const quizzes = await Quiz.find({ status: "published" }).select("title description questions");
-    const attempts = await QuizAttempt.find({ userId }).select("quizId score totalQuestions createdAt");
 
+    // Fetch all published quizzes with questions
+    const quizzes = await Quiz.find({ status: "published" }).select("title description questions");
+
+    // Fetch user's attempts
+    const attempts = await QuizAttempt.find({ userId })
+      .select("quizId score earnedCoins createdAt");
+
+    // Combine quiz + attempt data
     const statusList = quizzes.map((quiz) => {
       const attempt = attempts.find((a) => String(a.quizId) === String(quiz._id));
 
       if (attempt) {
-        const accuracy = ((attempt.score / attempt.totalQuestions) * 100).toFixed(2);
+        const totalQuestions = quiz.questions.length;
+        const accuracy = ((attempt.score / totalQuestions) * 100).toFixed(2);
         return {
           _id: quiz._id,
           title: quiz.title,
           description: quiz.description,
           attempted: true,
           score: attempt.score,
-          totalQuestions: attempt.totalQuestions,
+          totalQuestions,
           accuracy,
+          earnedCoins: attempt.earnedCoins,
           attemptedAt: attempt.createdAt,
         };
       } else {
@@ -411,5 +419,6 @@ router.get("/status/me", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Failed to fetch quiz statuses" });
   }
 });
+
 
 export default router;
