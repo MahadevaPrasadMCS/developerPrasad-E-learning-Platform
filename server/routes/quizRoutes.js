@@ -420,20 +420,24 @@ router.get("/status/me", authMiddleware, async (req, res) => {
   }
 });
 
-// 🧩 PUBLIC UPCOMING QUIZZES
+/* =========================================================
+🧩 PUBLIC UPCOMING QUIZZES (For Explore Page)
+========================================================= */
 router.get("/upcoming", async (req, res) => {
   try {
     const now = new Date();
     const upcoming = await Quiz.find({
       startTime: { $gt: now },
-      status: { $in: ["draft", "scheduled"] },
+      status: { $in: ["draft", "scheduled", "published"] }, // Include published future ones
     })
       .sort({ startTime: 1 })
-      .limit(5)
+      .limit(6)
       .select("title startTime");
 
     if (!upcoming.length)
-      return res.json([{ title: "No upcoming quizzes", date: null }]);
+      return res.json([
+        { _id: 1, title: "No upcoming quizzes right now", date: "TBA" },
+      ]);
 
     res.json(
       upcoming.map((q) => ({
@@ -441,8 +445,8 @@ router.get("/upcoming", async (req, res) => {
         title: q.title,
         date: q.startTime
           ? new Date(q.startTime).toLocaleDateString("en-IN", {
-              month: "short",
               day: "numeric",
+              month: "short",
               year: "numeric",
             })
           : "TBA",
