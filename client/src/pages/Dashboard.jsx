@@ -26,7 +26,7 @@ useEffect(() => {
   const fetchUserData = async () => {
     try {
       setRefreshing(true);
-      const res = await api.get("/user/me");
+      const res = await api.get("/users/me");
       const updated = res.data;
 
       // ✅ Only update if data actually changed

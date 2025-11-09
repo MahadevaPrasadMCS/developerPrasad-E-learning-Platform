@@ -124,7 +124,7 @@ app.use("/api/admin", adminUserRoutes);
 app.use("/api/admin/control", adminControlRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/resources", resourceRoutes);
-app.use("/api/user", userRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/rewards", rewardRoutes);
 app.use("/api/store", storeRoutes);
 app.use("/api/tutorials", tutorialRoutes);
