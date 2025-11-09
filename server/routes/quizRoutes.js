@@ -1,4 +1,3 @@
-// routes/quizRoutes.js
 import express from "express";
 import mongoose from "mongoose";
 import Quiz from "../models/Quiz.js";
@@ -43,7 +42,6 @@ router.get("/list", async (req, res) => {
     const now = new Date();
     const quizzes = await Quiz.find().sort({ createdAt: -1 });
 
-    // expire published quizzes whose endTime passed
     for (const quiz of quizzes) {
       if (quiz.endTime && now > quiz.endTime && quiz.status === "published") {
         quiz.status = "expired";
@@ -137,7 +135,6 @@ router.post("/register/:id", authMiddleware, async (req, res) => {
     if (quiz.status !== "published")
       return res.status(400).json({ message: "Quiz is not currently active." });
 
-    // participants array may contain ObjectIds: ensure comparison via String
     const already = quiz.participants?.some((p) => String(p) === String(req.user._id));
     if (already) return res.status(400).json({ message: "Already registered for this quiz." });
 
@@ -154,9 +151,6 @@ router.post("/register/:id", authMiddleware, async (req, res) => {
 
 /* =========================================================
 7️⃣ SUBMIT QUIZ ANSWERS
-   - allow authenticated users to submit
-   - prevent duplicate attempt (unique index)
-   - auto-register user if not already participant
 ========================================================= */
 router.post("/submit/:id", authMiddleware, async (req, res) => {
   try {
@@ -169,10 +163,6 @@ router.post("/submit/:id", authMiddleware, async (req, res) => {
     const quiz = await Quiz.findById(id);
     if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
-    // Optional: if you want to forbid admins from submitting, uncomment:
-    // if (req.user.role === "admin") return res.status(403).json({ message: "Admins cannot submit quizzes." });
-
-    // Auto-register if user not in participants
     const alreadyParticipant = quiz.participants?.some((p) => String(p) === String(req.user._id));
     if (!alreadyParticipant) {
       quiz.participants.push(req.user._id);
@@ -182,11 +172,8 @@ router.post("/submit/:id", authMiddleware, async (req, res) => {
     if (!Array.isArray(answers) || answers.length !== quiz.questions.length)
       return res.status(400).json({ message: "Invalid answers submitted" });
 
-    // prevent duplicate attempt manually (good UX) — unique index still enforces at DB
     const existing = await QuizAttempt.findOne({ quizId: quiz._id, userId: req.user._id });
-    if (existing) {
-      return res.status(400).json({ message: "You have already attempted this quiz." });
-    }
+    if (existing) return res.status(400).json({ message: "You have already attempted this quiz." });
 
     let score = 0;
     let earnedCoins = 0;
@@ -208,18 +195,8 @@ router.post("/submit/:id", authMiddleware, async (req, res) => {
       earnedCoins,
     });
 
-    try {
-      await attempt.save();
-    } catch (err) {
-      // catch duplicate key from unique index and report cleanly
-      if (err.code === 11000) {
-        console.warn("Duplicate attempt save prevented for", req.user._id, "quiz", id);
-        return res.status(400).json({ message: "You have already attempted this quiz." });
-      }
-      throw err;
-    }
+    await attempt.save();
 
-    // credit coins, update wallet
     const user = await User.findById(req.user._id);
     user.coins = (user.coins || 0) + earnedCoins;
     await user.save();
@@ -251,15 +228,9 @@ router.post("/submit/:id", authMiddleware, async (req, res) => {
 
 /* =========================================================
 8️⃣ FETCH USER ATTEMPTS
-   - allow all authenticated users; admin allowed too (you can change)
 ========================================================= */
 router.get("/attempts/me", authMiddleware, async (req, res) => {
   try {
-    // If you want to block admins, uncomment below:
-    // if (req.user.role === "admin") return res.status(403).json({ message: "Admins cannot view attempts" });
-
-    console.log("📥 Fetch attempts for:", req.user.email, "role:", req.user.role);
-
     const attempts = await QuizAttempt.find({ userId: req.user._id })
       .populate("quizId", "title description")
       .sort({ createdAt: -1 });
@@ -277,12 +248,10 @@ router.get("/attempts/me", authMiddleware, async (req, res) => {
 router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-
     if (!mongoose.Types.ObjectId.isValid(id))
       return res.status(400).json({ message: "Invalid quiz ID" });
 
     await Quiz.findByIdAndDelete(id);
-
     console.log("🗑️ Quiz deleted:", id, "by", req.user.email);
     res.json({ message: "Quiz deleted successfully" });
   } catch (err) {
@@ -292,25 +261,22 @@ router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 /* =========================================================
-🔟 PUBLISH QUIZ (Admin)
+🔟 PUBLISH & UNPUBLISH QUIZZES
 ========================================================= */
 router.put("/publish/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { id } = req.params;
     const { startTime, endTime } = req.body;
-
     if (!startTime || !endTime)
       return res.status(400).json({ message: "Start and end time required" });
 
     const quiz = await Quiz.findByIdAndUpdate(
-      id,
+      req.params.id,
       { startTime, endTime, status: "published" },
       { new: true }
     );
 
     if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-
-    console.log("📣 Quiz published:", id, "by", req.user.email);
+    console.log("📣 Quiz published:", quiz._id);
     res.json({ message: "Quiz published successfully", quiz });
   } catch (err) {
     console.error("Publish error:", err);
@@ -318,9 +284,6 @@ router.put("/publish/:id", authMiddleware, adminMiddleware, async (req, res) => 
   }
 });
 
-/* =========================================================
-1️⃣1️⃣ UNPUBLISH QUIZ (Admin)
-========================================================= */
 router.put("/unpublish/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const quiz = await Quiz.findByIdAndUpdate(
@@ -328,10 +291,9 @@ router.put("/unpublish/:id", authMiddleware, adminMiddleware, async (req, res) =
       { status: "draft", startTime: null, endTime: null },
       { new: true }
     );
-
     if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
-    console.log("⏸️ Quiz unpublished:", req.params.id, "by", req.user.email);
+    console.log("⏸️ Quiz unpublished:", req.params.id);
     res.json({ message: "Quiz unpublished successfully", quiz });
   } catch (err) {
     console.error("Unpublish error:", err);
@@ -340,18 +302,16 @@ router.put("/unpublish/:id", authMiddleware, adminMiddleware, async (req, res) =
 });
 
 /* =========================================================
-1️⃣2️⃣ QUIZ ANALYTICS (Admin)
-============================================================ */
+1️⃣2️⃣ QUIZ ANALYTICS (Admin) — Enhanced
+========================================================= */
 router.get("/:id/analytics", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-
     if (!mongoose.Types.ObjectId.isValid(id))
       return res.status(400).json({ message: "Invalid quiz ID" });
 
     const quiz = await Quiz.findById(id);
-    if (!quiz)
-      return res.status(404).json({ message: "Quiz not found" });
+    if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
     const attempts = await QuizAttempt.find({ quizId: id });
     if (!attempts.length)
@@ -359,12 +319,11 @@ router.get("/:id/analytics", authMiddleware, adminMiddleware, async (req, res) =
         totalUsers: 0,
         averageScore: 0,
         successRate: 0,
-        topPerformers: [],
+        performers: [],
       });
 
     const totalQuestions = quiz.questions.length;
 
-    // 🧠 Group attempts by user (take best attempt)
     const userMap = new Map();
     attempts.forEach((a) => {
       const userId = a.userId?.toString() || a.userName || "anonymous";
@@ -374,6 +333,7 @@ router.get("/:id/analytics", authMiddleware, adminMiddleware, async (req, res) =
         userMap.set(userId, {
           name: a.userName || "Anonymous",
           percent,
+          score: a.score,
         });
       }
     });
@@ -382,22 +342,28 @@ router.get("/:id/analytics", authMiddleware, adminMiddleware, async (req, res) =
     const totalUsers = users.length;
 
     const totalPercent = users.reduce((sum, u) => sum + u.percent, 0);
-    const averageScore = totalPercent / totalUsers;  // mean user percentage
-    const successRate = averageScore;                // overall collective performance
+    const averageScore = totalPercent / totalUsers;
 
-    const topPerformers = users
+    const HIGH_PERFORMANCE_THRESHOLD = 60;
+    const highPerformers = users.filter((u) => u.percent >= HIGH_PERFORMANCE_THRESHOLD);
+    const successRate =
+      highPerformers.length > 0
+        ? highPerformers.reduce((sum, u) => sum + u.percent, 0) / highPerformers.length
+        : 0;
+
+    const performers = users
       .sort((a, b) => b.percent - a.percent)
-      .slice(0, 5)
       .map((u) => ({
         name: u.name,
-        score: u.percent.toFixed(2),
+        score: u.score,
+        percent: u.percent.toFixed(2),
       }));
 
     res.json({
       totalUsers,
       averageScore,
       successRate,
-      topPerformers,
+      performers,
     });
   } catch (err) {
     console.error("Analytics error:", err);
@@ -406,19 +372,14 @@ router.get("/:id/analytics", authMiddleware, adminMiddleware, async (req, res) =
 });
 
 /* =========================================================
-1️⃣3️⃣ USER QUIZ STATUS (Shows which quizzes are attempted or available)
-============================================================ */
+1️⃣3️⃣ USER QUIZ STATUS
+========================================================= */
 router.get("/status/me", authMiddleware, async (req, res) => {
   try {
     const userId = req.user._id;
-
-    // Fetch all published quizzes
     const quizzes = await Quiz.find({ status: "published" }).select("title description questions");
-
-    // Fetch user's attempts
     const attempts = await QuizAttempt.find({ userId }).select("quizId score totalQuestions createdAt");
 
-    // Map quiz -> attempt status
     const statusList = quizzes.map((quiz) => {
       const attempt = attempts.find((a) => String(a.quizId) === String(quiz._id));
 
