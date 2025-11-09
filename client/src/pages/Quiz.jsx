@@ -78,7 +78,7 @@ function Quiz() {
         score: quiz.score,
         totalQuestions: quiz.totalQuestions,
         accuracy: ((quiz.score / quiz.totalQuestions) * 100).toFixed(2),
-        earnedCoins: quiz.score * 5,
+        earnedCoins: quiz.earnedCoins ?? quiz.score * 10,
       });
       return;
     }
@@ -90,7 +90,7 @@ function Quiz() {
     showToast("Quiz started in fullscreen", "success");
   };
 
-  /* 📝 Submit Quiz */
+  /* 📝 Submit Quiz + Fetch Analytics */
   const handleSubmit = useCallback(
     async (auto = false) => {
       try {
@@ -102,6 +102,21 @@ function Quiz() {
         setResult(res.data);
         setSubmitted(true);
         setAutoSubmitted(auto);
+
+        // 🎯 Fetch average & success rate
+        try {
+          const analyticsRes = await api.get(`/quiz/${activeQuiz._id}/analytics`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setResult((prev) => ({
+            ...prev,
+            averageScore: analyticsRes.data.averageScore?.toFixed(2),
+            successRate: analyticsRes.data.successRate?.toFixed(2),
+          }));
+        } catch (err) {
+          console.warn("Analytics fetch failed after submission");
+        }
+
         if (document.fullscreenElement) await document.exitFullscreen();
       } catch (err) {
         console.error("Submit error:", err);
@@ -143,6 +158,7 @@ function Quiz() {
         if (prev <= 1) {
           if (index < activeQuiz.questions.length - 1) {
             setIndex((i) => i + 1);
+            window.scrollTo({ top: 0, behavior: "smooth" });
             return 30;
           } else {
             handleSubmit();
@@ -194,7 +210,10 @@ function Quiz() {
               {q.attempted ? (
                 <div className="flex items-center gap-2 text-green-400 font-medium text-sm">
                   <CheckCircle2 size={16} />
-                  Submitted — <span className="ml-1">Score: {q.score}/{q.totalQuestions}</span>
+                  Submitted —{" "}
+                  <span className="ml-1">
+                    Score: {q.score}/{q.totalQuestions}
+                  </span>
                 </div>
               ) : (
                 <button
@@ -230,6 +249,20 @@ function Quiz() {
           <p className="text-gray-700 dark:text-gray-200 text-base">
             Coins Earned: 🪙 {result.earnedCoins}
           </p>
+
+          {result.averageScore && (
+            <div className="mt-3 border-t border-gray-300 dark:border-gray-600 pt-2 text-sm text-gray-500 dark:text-gray-400">
+              Avg Score:{" "}
+              <span className="font-semibold text-teal-500">
+                {result.averageScore}%
+              </span>{" "}
+              | Success Rate:{" "}
+              <span className="font-semibold text-green-500">
+                {result.successRate}%
+              </span>
+            </div>
+          )}
+
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
             New Balance: {result.newBalance ?? "—"}
           </p>
@@ -247,10 +280,12 @@ function Quiz() {
         <div className="fixed inset-0 bg-black/70 flex flex-col items-center justify-center text-white text-center px-6 z-50">
           <h2 className="text-lg sm:text-2xl mb-2">⚠️ Fullscreen Exited</h2>
           <p className="text-sm sm:text-base">
-            Please re-enter fullscreen within 5 seconds or quiz will be auto-submitted.
+            Please re-enter fullscreen within 5 seconds or quiz will be
+            auto-submitted.
           </p>
         </div>
       )}
+
       <div className="max-w-3xl w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 sm:p-8">
         <div className="flex justify-between items-center mb-3 sm:mb-5">
           <h2 className="text-base sm:text-xl font-bold text-teal-600 dark:text-teal-400">
@@ -295,6 +330,7 @@ function Quiz() {
               else {
                 setIndex((i) => i + 1);
                 setTimeLeft(30);
+                window.scrollTo({ top: 0, behavior: "smooth" });
               }
             }}
             disabled={answers[index] === null}
