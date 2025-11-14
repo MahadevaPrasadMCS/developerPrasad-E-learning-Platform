@@ -232,7 +232,7 @@ const handleStartQuiz = async (quizId) => {
                 </div>
               ) : (
                 <button
-                  onClick={() => handleStartQuiz(quiz._id)}
+                  onClick={() => handleStartQuiz(q._id)}
                   className="w-full mt-2 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium text-sm transition-all shadow-md hover:shadow-lg"
                 >
                   Start Quiz
