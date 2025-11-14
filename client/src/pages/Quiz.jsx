@@ -416,7 +416,11 @@ function Quiz() {
                 </div>
               ) : (
                 <button
+<<<<<<< HEAD
                   onClick={() => handleStartQuiz(q._id)} // ✅ fixed reference
+=======
+                  onClick={() => handleStartQuiz(q._id)}
+>>>>>>> 51587a9f0fdc3ccc72d52100b1b1df1aa48a1188
                   className="w-full mt-2 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium text-sm transition-all shadow-md hover:shadow-lg"
                 >
                   Start Quiz

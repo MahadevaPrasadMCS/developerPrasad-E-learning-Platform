@@ -70,8 +70,15 @@ router.get("/active", async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 // 4️⃣ GET QUIZ BY ID (Admin only)
 router.get("/:id", authMiddleware, adminMiddleware, async (req, res) => {
+=======
+/* =========================================================
+4️⃣ GET QUIZ BY ID (Admin only)
+========================================================= */
+router.get("/:id", authMiddleware, async (req, res) => {
+>>>>>>> 51587a9f0fdc3ccc72d52100b1b1df1aa48a1188
   try {
     const quiz = await Quiz.findById(req.params.id);
     if (!quiz) return res.status(404).json({ message: "Quiz not found" });
