@@ -9,9 +9,13 @@ import { useAuth } from "../context/AuthContext";
 import { CheckCircle2, PlayCircle, ShieldAlert, Info } from "lucide-react";
 
 const QUIZ_STATE_KEY = "youlearnhub_active_quiz_secure_v2";
+const QUIZ_RESULT_KEY = "youlearnhub_last_quiz_result_v1";
 
 function Quiz() {
   const { token } = useAuth();
+
+  // Device
+  const [isMobile, setIsMobile] = useState(false);
 
   // Core state
   const [quizStatus, setQuizStatus] = useState([]);
@@ -23,8 +27,8 @@ function Quiz() {
   const [timeLeft, setTimeLeft] = useState(30);
 
   // Flow flags
-  const [readyToStart, setReadyToStart] = useState(false); // quiz selected, waiting for F
-  const [pendingQuiz, setPendingQuiz] = useState(null); // data from /attend/:id
+  const [readyToStart, setReadyToStart] = useState(false); // quiz selected, waiting for F (desktop)
+  const [pendingQuiz, setPendingQuiz] = useState(null); // data from /quiz/attend/:id
 
   const [registered, setRegistered] = useState(false); // quiz actually started
   const [submitted, setSubmitted] = useState(false);
@@ -33,8 +37,9 @@ function Quiz() {
 
   // Security state
   const [violations, setViolations] = useState(0);
-  const [fullscreenLost, setFullscreenLost] = useState(false);
+  const [fullscreenLost, setFullscreenLost] = useState(false); // desktop only
   const [countdown, setCountdown] = useState(null); // 3..2..1 intro
+  const [paused, setPaused] = useState(false); // generic pause (focus lost, fullscreen lost, etc.)
 
   const timerRef = useRef(null);
   const toastTimeoutRef = useRef(null);
@@ -46,6 +51,15 @@ function Quiz() {
   });
 
   const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+
+  /* ===========================
+     Device Detection
+  ============================ */
+  useEffect(() => {
+    if (typeof navigator !== "undefined") {
+      setIsMobile(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent));
+    }
+  }, []);
 
   /* ===========================
      Toast System
@@ -103,10 +117,12 @@ function Quiz() {
   };
 
   /* ===========================
-     Fullscreen Helpers
+     Fullscreen Helpers (Desktop Only)
   ============================ */
 
   const requestFullscreenSafe = () => {
+    if (isMobile) return; // don't try fullscreen on mobile
+
     try {
       const el = document.documentElement;
       if (el.requestFullscreen) el.requestFullscreen();
@@ -159,6 +175,7 @@ function Quiz() {
       setInvalidated(true);
       setSubmitted(true);
       setFullscreenLost(false);
+      setPaused(true);
       clearInterval(timerRef.current);
       sessionStorage.removeItem(QUIZ_STATE_KEY);
       await exitFullscreenSafe();
@@ -181,27 +198,42 @@ function Quiz() {
       setViolations((prev) => {
         const next = prev + 1;
 
-        if (
-          reason === "fullscreen-exit" ||
-          reason === "tab-switch-or-minimize" ||
-          reason === "window-blur"
-        ) {
+        // Desktop fullscreen exit → pause + overlay
+        if (!isMobile && reason === "fullscreen-exit") {
           setFullscreenLost(true);
+          setPaused(true);
         }
 
-        if (next >= 3) {
-          handleInvalidate(reason, next);
-        } else {
+        // Mobile tab/app switch → soft strict behavior
+        if (
+          isMobile &&
+          (reason === "tab-switch-or-minimize" || reason === "window-blur")
+        ) {
+          // message style A
+          showToast(
+            "Focus lost — timer paused. Return to quiz.",
+            "warning"
+          );
+        } else if (
+          !isMobile ||
+          (reason !== "tab-switch-or-minimize" &&
+            reason !== "window-blur")
+        ) {
+          // default desktop / other reasons
           showToast(
             `Security warning ${next}/3. Further violations may invalidate your attempt.`,
             "warning"
           );
         }
 
+        if (next >= 3) {
+          handleInvalidate(reason, next);
+        }
+
         return next;
       });
     },
-    [registered, submitted, invalidated, handleInvalidate, showToast]
+    [registered, submitted, invalidated, isMobile, handleInvalidate, showToast]
   );
 
   /* ===========================
@@ -225,6 +257,9 @@ function Quiz() {
         );
 
         setResult(res.data);
+        // persist result for refresh
+        sessionStorage.setItem(QUIZ_RESULT_KEY, JSON.stringify(res.data));
+
         await exitFullscreenSafe();
         showToast(
           auto ? "Quiz auto-submitted." : "Quiz submitted successfully.",
@@ -270,6 +305,23 @@ function Quiz() {
   }, [token, authHeader, showToast]);
 
   /* ===========================
+     Restore last result after refresh
+  ============================ */
+
+  useEffect(() => {
+    if (!token) return;
+    const stored = sessionStorage.getItem(QUIZ_RESULT_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setResult(parsed);
+      } catch {
+        sessionStorage.removeItem(QUIZ_RESULT_KEY);
+      }
+    }
+  }, [token]);
+
+  /* ===========================
      Start Quiz (Select Quiz)
   ============================ */
 
@@ -287,19 +339,48 @@ function Quiz() {
         return;
       }
 
+      // clear any old result
+      sessionStorage.removeItem(QUIZ_RESULT_KEY);
+      setResult(null);
+
       setPendingQuiz(data);
       setReadyToStart(true);
       setActiveQuiz(null);
-      setResult(null);
       setSubmitted(false);
       setInvalidated(false);
       setViolations(0);
       setFullscreenLost(false);
       setCountdown(null);
+      setPaused(false);
 
       sessionStorage.removeItem(QUIZ_STATE_KEY);
 
-      showToast("Press F to enter secure fullscreen and begin.", "info");
+      if (isMobile) {
+        // Mobile: no fullscreen, start directly with soft-strict protections
+        try {
+          await api.post(`/quiz/register/${data._id}`, {}, { headers: authHeader });
+        } catch (err) {
+          console.error("Register error:", err);
+          showToast(
+            err.response?.data?.message ||
+              "Failed to register for quiz. Try again.",
+            "error"
+          );
+          return;
+        }
+
+        setActiveQuiz(data);
+        setAnswers(new Array(data.questions.length).fill(null));
+        setIndex(0);
+        setTimeLeft(30);
+        setRegistered(true);
+        setReadyToStart(false);
+        setCountdown(3);
+        showToast("Mobile secure mode enabled. Quiz starting...", "info");
+      } else {
+        // Desktop: wait for F to enter fullscreen
+        showToast("Press F to enter secure fullscreen and begin.", "info");
+      }
     } catch (error) {
       console.error("Start quiz error:", error);
       showToast("Unable to prepare the quiz. Try again later.", "error");
@@ -307,15 +388,17 @@ function Quiz() {
   };
 
   /* ===========================
-     Press F → Fullscreen & Start/Resume
+     Press F → Fullscreen & Start/Resume (Desktop only)
   ============================ */
 
   useEffect(() => {
+    if (isMobile) return; // mobile doesn't use F/fullscreen
+
     const handleKeyDown = (e) => {
       if (e.key.toLowerCase() !== "f") return;
       if (!token) return;
 
-      // Starting quiz for first time
+      // Starting quiz for first time (desktop)
       if (
         readyToStart &&
         pendingQuiz &&
@@ -360,6 +443,7 @@ function Quiz() {
           setRegistered(true);
           setReadyToStart(false);
           setFullscreenLost(false);
+          setPaused(false);
           setCountdown(3);
 
           showToast("Secure fullscreen enabled. Get ready!", "success");
@@ -368,7 +452,7 @@ function Quiz() {
         return;
       }
 
-      // Resuming after fullscreen lost
+      // Resuming after fullscreen lost (desktop)
       if (registered && fullscreenLost && !submitted && !invalidated) {
         requestFullscreenSafe();
 
@@ -381,6 +465,7 @@ function Quiz() {
             return;
           }
           setFullscreenLost(false);
+          setPaused(false);
           showToast("Resumed in secure fullscreen mode.", "success");
         }, 200);
       }
@@ -389,6 +474,7 @@ function Quiz() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
+    isMobile,
     token,
     readyToStart,
     pendingQuiz,
@@ -409,6 +495,7 @@ function Quiz() {
     if (countdown <= 0) {
       setCountdown(null);
       setTimeLeft(30);
+      setPaused(false);
       return;
     }
     const id = setTimeout(
@@ -427,7 +514,7 @@ function Quiz() {
       !registered ||
       submitted ||
       invalidated ||
-      fullscreenLost ||
+      paused ||
       countdown !== null ||
       !activeQuiz
     ) {
@@ -444,7 +531,7 @@ function Quiz() {
     registered,
     submitted,
     invalidated,
-    fullscreenLost,
+    paused,
     countdown,
     activeQuiz,
   ]);
@@ -455,7 +542,8 @@ function Quiz() {
       submitted ||
       invalidated ||
       !activeQuiz ||
-      countdown !== null
+      countdown !== null ||
+      paused
     )
       return;
 
@@ -476,6 +564,7 @@ function Quiz() {
     activeQuiz,
     index,
     countdown,
+    paused,
     handleSubmit,
   ]);
 
@@ -519,9 +608,9 @@ function Quiz() {
     };
   }, [registered, submitted, invalidated, registerViolation]);
 
-  // Fullscreen exit watcher
+  // Fullscreen exit watcher (desktop only)
   useEffect(() => {
-    if (!registered || submitted || invalidated) return;
+    if (!registered || submitted || invalidated || isMobile) return;
 
     const handleFsChange = () => {
       if (!isInFullscreen()) {
@@ -540,43 +629,67 @@ function Quiz() {
       document.removeEventListener("mozfullscreenchange", handleFsChange);
       document.removeEventListener("MSFullscreenChange", handleFsChange);
     };
-  }, [registered, submitted, invalidated, registerViolation]);
+  }, [registered, submitted, invalidated, isMobile, registerViolation]);
 
-  // Tab switch / blur
+  // Tab switch / blur (both desktop & mobile)
   useEffect(() => {
     if (!registered || submitted || invalidated) return;
 
     const visHandler = () => {
-      if (document.hidden) registerViolation("tab-switch-or-minimize");
+      if (document.hidden) {
+        setPaused(true);
+        registerViolation("tab-switch-or-minimize");
+      } else if (
+        isMobile &&
+        registered &&
+        !submitted &&
+        !invalidated
+      ) {
+        // Mobile: resume automatically when they come back
+        setPaused(false);
+        showToast("Focus restored. Timer resumed.", "info");
+      }
     };
-    const blurHandler = () => registerViolation("window-blur");
 
-    document.addEventListener("visibilitychange", visHandler);
+    const blurHandler = () => {
+      setPaused(true);
+      registerViolation("window-blur");
+    };
+
     window.addEventListener("blur", blurHandler);
+    document.addEventListener("visibilitychange", visHandler);
 
     return () => {
-      document.removeEventListener("visibilitychange", visHandler);
       window.removeEventListener("blur", blurHandler);
+      document.removeEventListener("visibilitychange", visHandler);
     };
-  }, [registered, submitted, invalidated, registerViolation]);
+  }, [
+    registered,
+    submitted,
+    invalidated,
+    isMobile,
+    registerViolation,
+    showToast,
+  ]);
 
   /* ===========================
      UI Helpers
   ============================ */
 
-  const renderPixelOverlay = () => (
-    <div className="fixed inset-0 z-40 bg-black/80 flex flex-col items-center justify-center text-white text-center px-6">
-      <ShieldAlert size={32} className="text-amber-400 mb-3 animate-pulse" />
-      <h2 className="text-xl font-bold mb-2">Oops! You left fullscreen</h2>
-      <p className="text-sm sm:text-base mb-1">
-        Your exam is paused for security reasons.
-      </p>
-      <p className="text-xs sm:text-sm opacity-80">
-        Press <span className="font-semibold">F</span> to get back and
-        continue.
-      </p>
-    </div>
-  );
+  const renderPixelOverlay = () =>
+    !isMobile && (
+      <div className="fixed inset-0 z-40 bg-black/80 flex flex-col items-center justify-center text-white text-center px-6">
+        <ShieldAlert size={32} className="text-amber-400 mb-3 animate-pulse" />
+        <h2 className="text-xl font-bold mb-2">Oops! You left fullscreen</h2>
+        <p className="text-sm sm:text-base mb-1">
+          Your exam is paused for security reasons.
+        </p>
+        <p className="text-xs sm:text-sm opacity-80">
+          Press <span className="font-semibold">F</span> to get back and
+          continue.
+        </p>
+      </div>
+    );
 
   const renderCountdownOverlay = () =>
     countdown !== null && (
@@ -612,8 +725,9 @@ function Quiz() {
           Available Quizzes
         </h2>
         <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">
-          Your quiz will run in secure fullscreen. Make sure you&apos;re on a
-          laptop or desktop.
+          {isMobile
+            ? "Mobile secure mode enabled. For stricter protection, use a laptop/desktop."
+            : "Your quiz will run in secure fullscreen. Use a laptop/desktop for best experience."}
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-4xl">
           {quizStatus.map((q) => (
@@ -662,8 +776,8 @@ function Quiz() {
       </div>
     );
 
-  // Pre-start secure screen (quiz selected, waiting for F)
-  if (readyToStart && !registered && pendingQuiz)
+  // Pre-start secure screen (desktop only)
+  if (readyToStart && !registered && pendingQuiz && !isMobile)
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-gray-900 via-gray-950 to-black text-white">
         {renderToast()}
@@ -720,7 +834,7 @@ function Quiz() {
       </div>
     );
 
-  // Result screen
+  // Result screen (persists after refresh)
   if (result)
     return (
       <div className="min-h-screen flex items-center justify-center p-6 text-center bg-gradient-to-br from-teal-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -814,13 +928,15 @@ function Quiz() {
                 {violations}/3
               </span>
             </p>
-            <p className="mt-1">
-              Press{" "}
-              <span className="px-1 rounded bg-gray-800 text-[10px] border border-gray-600">
-                F
-              </span>{" "}
-              to re-enter fullscreen if paused.
-            </p>
+            {!isMobile && (
+              <p className="mt-1">
+                Press{" "}
+                <span className="px-1 rounded bg-gray-800 text-[10px] border border-gray-600">
+                  F
+                </span>{" "}
+                to re-enter fullscreen if paused.
+              </p>
+            )}
           </div>
         </aside>
 
