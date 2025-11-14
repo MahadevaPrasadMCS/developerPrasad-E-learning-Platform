@@ -19,7 +19,6 @@ function Quiz() {
   const [timeLeft, setTimeLeft] = useState(30);
   const [registered, setRegistered] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [autoSubmitted, setAutoSubmitted] = useState(false);
   const [result, setResult] = useState(null);
   const [fullscreenWarning, setFullscreenWarning] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -177,14 +176,13 @@ function Quiz() {
       if (!activeQuiz || submitted || invalidated) return;
 
       setSubmitted(true);
-      setAutoSubmitted(auto);
 
       try {
         const res = await api.post(
           `/quiz/submit/${activeQuiz._id}`,
           {
             answers,
-            violations, // backend can store this if implemented
+            violations,
           },
           { headers: authHeader }
         );
@@ -229,10 +227,8 @@ function Quiz() {
       console.warn(`Security violation (${reason}) – strike ${next}/3`);
 
       if (next >= 3) {
-        // 3rd strike → invalidate attempt
         handleInvalidate(reason, next);
       } else {
-        // Show overlay + auto-restore fullscreen
         setFullscreenWarning(true);
         requestFullscreenSafe();
         showToast(
@@ -463,7 +459,7 @@ function Quiz() {
         setTimeLeft(30);
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
-        handleSubmit();
+        handleSubmit(true);
       }
     }
   }, [
@@ -482,7 +478,6 @@ function Quiz() {
 
   const handleStartQuiz = async (quizId) => {
     try {
-      // 1. Get sanitized quiz (no correct answers)
       const { data: fullQuiz } = await api.get(`/quiz/attend/${quizId}`, {
         headers: authHeader,
       });
@@ -495,7 +490,6 @@ function Quiz() {
         return;
       }
 
-      // 2. Register user for quiz (backend may use this for tracking)
       await api.post(`/quiz/register/${quizId}`, {}, { headers: authHeader });
 
       showToast("Registered successfully!", "success");
@@ -562,11 +556,12 @@ function Quiz() {
                     <CheckCircle2 size={16} />
                     <span>Submitted</span>
                   </div>
-                  {typeof q.score === "number" && typeof q.totalQuestions === "number" && (
-                    <span className="font-medium">
-                      Score: {q.score}/{q.totalQuestions}
-                    </span>
-                  )}
+                  {typeof q.score === "number" &&
+                    typeof q.totalQuestions === "number" && (
+                      <span className="font-medium">
+                        Score: {q.score}/{q.totalQuestions}
+                      </span>
+                    )}
                 </div>
               ) : (
                 <button
@@ -639,7 +634,6 @@ function Quiz() {
       </div>
     );
 
-  // Main quiz UI
   const q = activeQuiz.questions[index];
   const progress = ((index + 1) / activeQuiz.questions.length) * 100;
 
@@ -713,7 +707,7 @@ function Quiz() {
           <button
             onClick={() => {
               if (index === activeQuiz.questions.length - 1) {
-                handleSubmit();
+                handleSubmit(false);
               } else {
                 setIndex((i) => i + 1);
                 setTimeLeft(30);
