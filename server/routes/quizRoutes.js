@@ -70,9 +70,7 @@ router.get("/active", async (req, res) => {
   }
 });
 
-/* =========================================================
-4️⃣ GET QUIZ BY ID (Admin only)
-========================================================= */
+// 4️⃣ GET QUIZ BY ID (Admin only)
 router.get("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const quiz = await Quiz.findById(req.params.id);
@@ -112,6 +110,60 @@ router.put("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
+// 🧩 ATTEND QUIZ (User) — sanitized questions (no correct answers)
+router.get("/attend/:id", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res.status(400).json({ message: "Invalid quiz ID" });
+
+    const quiz = await Quiz.findById(id);
+
+    if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+    if (quiz.status !== "published")
+      return res.status(400).json({ message: "Quiz is not currently active." });
+
+    const now = new Date();
+    if (quiz.startTime && now < quiz.startTime)
+      return res.status(400).json({ message: "Quiz has not started yet." });
+    if (quiz.endTime && now > quiz.endTime)
+      return res.status(400).json({ message: "Quiz has ended." });
+
+    if (!quiz.questions || !quiz.questions.length)
+      return res
+        .status(400)
+        .json({ message: "Quiz has no questions configured." });
+
+    // Optional: block if already attempted
+    const existingAttempt = await QuizAttempt.findOne({
+      quizId: quiz._id,
+      userId: req.user._id,
+    });
+    if (existingAttempt)
+      return res
+        .status(400)
+        .json({ message: "You have already attempted this quiz." });
+
+    const safeQuiz = {
+      _id: quiz._id,
+      title: quiz.title,
+      description: quiz.description,
+      questions: quiz.questions.map((q) => ({
+        _id: q._id,
+        question: q.question,
+        options: q.options,
+        coins: q.coins,
+      })),
+    };
+
+    res.json(safeQuiz);
+  } catch (err) {
+    console.error("Attend quiz error:", err);
+    res.status(500).json({ message: "Failed to fetch quiz for attempt" });
+  }
+});
+
 /* =========================================================
 6️⃣ REGISTER FOR QUIZ
 ========================================================= */
@@ -128,8 +180,19 @@ router.post("/register/:id", authMiddleware, async (req, res) => {
     if (quiz.status !== "published")
       return res.status(400).json({ message: "Quiz is not currently active." });
 
-    const already = quiz.participants?.some((p) => String(p) === String(req.user._id));
-    if (already) return res.status(400).json({ message: "Already registered for this quiz." });
+    const now = new Date();
+    if (quiz.startTime && now < quiz.startTime)
+      return res.status(400).json({ message: "Quiz has not started yet." });
+    if (quiz.endTime && now > quiz.endTime)
+      return res.status(400).json({ message: "Quiz has ended." });
+
+    const already = quiz.participants?.some(
+      (p) => String(p) === String(req.user._id)
+    );
+    if (already)
+      return res
+        .status(400)
+        .json({ message: "Already registered for this quiz." });
 
     quiz.participants.push(req.user._id);
     await quiz.save();
@@ -141,6 +204,7 @@ router.post("/register/:id", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Failed to register for quiz" });
   }
 });
+
 
 /* =========================================================
 7️⃣ SUBMIT QUIZ ANSWERS
@@ -156,7 +220,18 @@ router.post("/submit/:id", authMiddleware, async (req, res) => {
     const quiz = await Quiz.findById(id);
     if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
-    const alreadyParticipant = quiz.participants?.some((p) => String(p) === String(req.user._id));
+    if (quiz.status !== "published")
+      return res.status(400).json({ message: "Quiz is not currently active." });
+
+    const now = new Date();
+    if (quiz.startTime && now < quiz.startTime)
+      return res.status(400).json({ message: "Quiz has not started yet." });
+    if (quiz.endTime && now > quiz.endTime)
+      return res.status(400).json({ message: "Quiz has ended." });
+
+    const alreadyParticipant = quiz.participants?.some(
+      (p) => String(p) === String(req.user._id)
+    );
     if (!alreadyParticipant) {
       quiz.participants.push(req.user._id);
       await quiz.save();
@@ -165,8 +240,14 @@ router.post("/submit/:id", authMiddleware, async (req, res) => {
     if (!Array.isArray(answers) || answers.length !== quiz.questions.length)
       return res.status(400).json({ message: "Invalid answers submitted" });
 
-    const existing = await QuizAttempt.findOne({ quizId: quiz._id, userId: req.user._id });
-    if (existing) return res.status(400).json({ message: "You have already attempted this quiz." });
+    const existing = await QuizAttempt.findOne({
+      quizId: quiz._id,
+      userId: req.user._id,
+    });
+    if (existing)
+      return res
+        .status(400)
+        .json({ message: "You have already attempted this quiz." });
 
     let score = 0;
     let earnedCoins = 0;
@@ -204,7 +285,16 @@ router.post("/submit/:id", authMiddleware, async (req, res) => {
     });
     await wallet.save();
 
-    console.log("✅ Quiz submitted:", quiz._id, "by", req.user.email, "score:", score, "coins:", earnedCoins);
+    console.log(
+      "✅ Quiz submitted:",
+      quiz._id,
+      "by",
+      req.user.email,
+      "score:",
+      score,
+      "coins:",
+      earnedCoins
+    );
 
     res.json({
       message: "Quiz submitted successfully",
@@ -218,6 +308,7 @@ router.post("/submit/:id", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Failed to submit quiz" });
   }
 });
+
 
 /* =========================================================
 8️⃣ FETCH USER ATTEMPTS
