@@ -31,6 +31,32 @@ router.post("/create", authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/quiz/admin/list?page=1&limit=6
+router.get("/list", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit, 10) || 6, 1);
+    const skip = (page - 1) * limit;
+
+    const [quizzes, totalQuizzes] = await Promise.all([
+      Quiz.find().sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Quiz.countDocuments(),
+    ]);
+
+    res.json({
+      quizzes,
+      totalQuizzes,
+      totalPages: Math.ceil(totalQuizzes / limit),
+      currentPage: page,
+      pageSize: limit,
+    });
+  } catch (err) {
+    console.error("Quiz list error:", err);
+    res.status(500).json({ message: "Failed to load quizzes" });
+  }
+});
+
+
 // ✏️ Update quiz
 router.put("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
