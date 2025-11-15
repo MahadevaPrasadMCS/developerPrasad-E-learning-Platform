@@ -1,5 +1,4 @@
 import express from "express";
-import mongoose from "mongoose";
 import Quiz from "../models/Quiz.js";
 import QuizAttempt from "../models/quizAttempt.js";
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -7,7 +6,9 @@ import adminMiddleware from "../middleware/adminMiddleware.js";
 
 const router = express.Router();
 
-// 🛠 Create Quiz (Admin)
+/* =========================================================
+📌 CREATE QUIZ
+========================================================= */
 router.post("/create", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { title, description, questions } = req.body;
@@ -26,16 +27,17 @@ router.post("/create", authMiddleware, adminMiddleware, async (req, res) => {
     await quiz.save();
     res.status(201).json({ message: "Quiz created", quiz });
   } catch (err) {
-    console.error("Create quiz error:", err);
     res.status(500).json({ message: "Failed to create quiz" });
   }
 });
 
-// GET /api/quiz/admin/list?page=1&limit=6
+/* =========================================================
+📌 ADMIN QUIZ LIST
+========================================================= */
 router.get("/list", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-    const limit = Math.max(parseInt(req.query.limit, 10) || 6, 1);
+    const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
     const skip = (page - 1) * limit;
 
     const [quizzes, totalQuizzes] = await Promise.all([
@@ -51,13 +53,13 @@ router.get("/list", authMiddleware, adminMiddleware, async (req, res) => {
       pageSize: limit,
     });
   } catch (err) {
-    console.error("Quiz list error:", err);
     res.status(500).json({ message: "Failed to load quizzes" });
   }
 });
 
-
-// ✏️ Update quiz
+/* =========================================================
+📌 UPDATE QUIZ
+========================================================= */
 router.put("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const quiz = await Quiz.findByIdAndUpdate(
@@ -66,14 +68,15 @@ router.put("/:id", authMiddleware, adminMiddleware, async (req, res) => {
       { new: true }
     );
     if (!quiz) return res.status(404).json({ message: "Not found" });
-
     res.json({ message: "Quiz updated", quiz });
   } catch (err) {
     res.status(500).json({ message: "Error updating quiz" });
   }
 });
 
-// 🗑 Delete quiz
+/* =========================================================
+📌 DELETE QUIZ
+========================================================= */
 router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     await Quiz.findByIdAndDelete(req.params.id);
@@ -83,47 +86,117 @@ router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-// 📣 Publish quiz
+/* =========================================================
+📌 PUBLISH / UNPUBLISH
+========================================================= */
 router.put("/publish/:id", authMiddleware, adminMiddleware, async (req, res) => {
-  const { startTime, endTime } = req.body;
+  try {
+    const { startTime, endTime } = req.body;
+    if (!startTime || !endTime)
+      return res.status(400).json({ message: "Provide timing" });
 
-  if (!startTime || !endTime)
-    return res.status(400).json({ message: "Provide timing" });
+    const quiz = await Quiz.findByIdAndUpdate(
+      req.params.id,
+      { status: "published", startTime, endTime },
+      { new: true }
+    );
 
-  const quiz = await Quiz.findByIdAndUpdate(
-    req.params.id,
-    { startTime, endTime, status: "published" },
-    { new: true }
-  );
-
-  res.json({ message: "Quiz published", quiz });
+    res.json({ message: "Quiz published", quiz });
+  } catch (err) {
+    res.status(500).json({ message: "Publish failed" });
+  }
 });
 
-// ⛔ Unpublish quiz
 router.put("/unpublish/:id", authMiddleware, adminMiddleware, async (req, res) => {
-  const quiz = await Quiz.findByIdAndUpdate(
-    req.params.id,
-    { status: "draft", startTime: null, endTime: null },
-    { new: true }
-  );
-
-  res.json({ message: "Quiz unpublished", quiz });
+  try {
+    const quiz = await Quiz.findByIdAndUpdate(
+      req.params.id,
+      { status: "draft", startTime: null, endTime: null },
+      { new: true }
+    );
+    res.json({ message: "Quiz unpublished", quiz });
+  } catch (err) {
+    res.status(500).json({ message: "Unpublish failed" });
+  }
 });
 
-// 📊 Analytics
+/* =========================================================
+📌 ANALYTICS (with filtering support)
+========================================================= */
 router.get("/:id/analytics", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const attempts = await QuizAttempt.find({ quizId: req.params.id });
+    const { filter = "completed" } = req.query;
+
+    const quiz = await Quiz.findById(req.params.id);
+    if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+
+    const query = { quizId: req.params.id };
+    if (filter !== "all") query.status = filter;
+
+    const attempts = await QuizAttempt.find(query).lean();
+    const totalQuestions = quiz.questions.length;
     const totalUsers = attempts.length;
-    const avgScore = attempts.reduce((sum, a) => sum + a.score, 0) / (totalUsers || 1);
+
+    const performers = attempts.map((a) => {
+      const percent = totalQuestions
+        ? ((a.score / totalQuestions) * 100).toFixed(2)
+        : "0.00";
+      return {
+        name: a.userName,
+        score: a.score,
+        percent,
+        status: a.status,
+        violations: a.violations,
+      };
+    });
+
+    const averageScore =
+      performers.reduce((sum, p) => sum + parseFloat(p.percent), 0) /
+      (totalUsers || 1);
+
+    const successRate =
+      (performers.filter((p) => parseFloat(p.percent) >= 60).length /
+        (totalUsers || 1)) *
+      100;
 
     res.json({
+      quizId: quiz._id,
+      title: quiz.title,
       totalUsers,
-      averageScore: avgScore.toFixed(2),
-      attempts,
+      averageScore: Number(averageScore.toFixed(2)),
+      successRate: Number(successRate.toFixed(2)),
+      performers,
     });
-  } catch {
+  } catch (err) {
     res.status(500).json({ message: "Analytics failed" });
+  }
+});
+
+/* =========================================================
+📌 REWARD TOP PERFORMERS
+========================================================= */
+router.post("/:id/reward", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { topPercent = 60, coins = 20 } = req.body;
+    const attempts = await QuizAttempt.find({
+      quizId: req.params.id,
+      status: "completed",
+    }).populate("userId");
+
+    let count = 0;
+
+    for (const a of attempts) {
+      const percent = ((a.score / a.answers.length) * 100).toFixed(2);
+      if (percent >= topPercent) {
+        a.userId.coins += coins;
+        await a.userId.save();
+        count++;
+      }
+    }
+
+    res.json({ message: "Rewards distributed", rewardedCount: count });
+  } catch (err) {
+    res.status(500).json({ message: "Reward distribution failed" });
   }
 });
 
