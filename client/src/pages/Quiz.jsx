@@ -838,7 +838,7 @@ function Quiz() {
   if (result)
     return (
       <div className="min-h-screen flex items-center justify-center p-6 text-center bg-gradient-to-br from-teal-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        {renderToast()}
+        {console.log("rendered") && renderToast()}
         <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl max-w-md w-full border border-teal-200/70 dark:border-teal-500/40">
           <h2 className="text-2xl font-bold text-teal-600 dark:text-teal-400 mb-3">
             Your Result 🎯
