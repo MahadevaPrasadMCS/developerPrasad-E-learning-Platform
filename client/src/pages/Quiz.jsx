@@ -64,6 +64,7 @@ function Quiz() {
   const isMobileRef = useRef(isMobile);
   const activeQuizRef = useRef(activeQuiz);
   const pendingQuizRef = useRef(pendingQuiz);
+  const readyToStartRef = useRef(readyToStart);
 
   useEffect(() => {
     registeredRef.current = registered;
@@ -83,6 +84,9 @@ function Quiz() {
   useEffect(() => {
     pendingQuizRef.current = pendingQuiz;
   }, [pendingQuiz]);
+  useEffect(() => {
+    readyToStartRef.current = readyToStart;
+  }, [readyToStart]);
 
   /* ===========================
      Device Detection
@@ -103,8 +107,6 @@ function Quiz() {
     toastTimeoutRef.current = setTimeout(() => {
       setToast((prev) => ({ ...prev, open: false }));
     }, 2800);
-    // also console log for debugging
-    // console.log(`[${type.toUpperCase()}] ${message}`);
   }, []);
 
   useEffect(() => {
@@ -409,8 +411,9 @@ function Quiz() {
       if (e.key.toLowerCase() !== "f") return;
 
       // Starting quiz for first time (desktop)
+      // NOTE: use readyToStartRef and pendingQuizRef so handler always has latest values
       if (
-        readyToStart &&
+        (readyToStartRef.current || pendingQuizRef.current) &&
         pendingQuizRef.current &&
         !registeredRef.current &&
         !submittedRef.current &&
@@ -470,7 +473,7 @@ function Quiz() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-    // dependencies: token, readyToStart are intentionally omitted because we use refs for changing states
+    // dependencies: token, authHeader, requestFullscreenSafe, isInFullscreen, showToast
   }, [token, authHeader, requestFullscreenSafe, isInFullscreen, showToast]);
 
   /* ===========================
