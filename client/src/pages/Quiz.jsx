@@ -663,7 +663,7 @@ function Quiz() {
   if (!activeQuiz && !result && !invalidated && !readyToStart)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-gradient-to-br from-teal-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        {console.log(rendered) && renderToast() }
+        {console.log("rendered") && renderToast() }
         <h2 className="text-3xl font-bold text-teal-600 dark:text-teal-400 mb-2 text-center">
           Available Quizzes
         </h2>
