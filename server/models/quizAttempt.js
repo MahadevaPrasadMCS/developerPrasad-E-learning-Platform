@@ -16,30 +16,34 @@ const quizAttemptSchema = new mongoose.Schema(
     },
 
     // Selected answer option index per question
-    answers: [Number],
+    answers: {
+      type: [Number],
+      default: [],
+    },
 
     score: { type: Number, default: 0 },
     earnedCoins: { type: Number, default: 0 },
 
-    // ⭐ NEW: Attempt Status
+    // ⭐ Attempt State
     status: {
       type: String,
-      enum: ["completed", "invalidated"],
-      default: "completed",
+      enum: ["started", "completed", "invalidated"],
+      default: "started",
     },
 
-    // ⭐ NEW: Security Violation Count
+    // ⭐ Security Violation Count
     violations: { type: Number, default: 0 },
 
-    // ⭐ NEW: Tracking suspicious reason
+    // ⭐ Why attempt was invalidated (if applicable)
     reason: { type: String, default: null },
 
-    submittedAt: { type: Date, default: Date.now },
+    // Set only on successful submit
+    submittedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
 
-// Unique attempt per quiz per user
+// Ensure unique attempt per quiz per user
 quizAttemptSchema.index(
   { userId: 1, quizId: 1 },
   { unique: true, sparse: true }
