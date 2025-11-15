@@ -608,16 +608,15 @@ function Quiz() {
     };
   }, [registered, submitted, invalidated, registerViolation]);
 
+      const handleFsChange = useCallback(() => {
+      if (!isInFullscreen()) {
+        registerViolation("fullscreen-exit");
+      }
+    }, [registerViolation]);
+
   // Fullscreen exit watcher (desktop only)
   useEffect(() => {
     if (!registered || submitted || invalidated || isMobile) return;
-
-    const handleFsChange = useCallback(() => {
-  if (!isInFullscreen()) {
-    registerViolation("fullscreen-exit");
-  }
-}, [registerViolation]);
-
 
     document.addEventListener("fullscreenchange", handleFsChange);
     document.addEventListener("webkitfullscreenchange", handleFsChange);
