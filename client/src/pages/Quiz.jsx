@@ -105,7 +105,7 @@ function Quiz() {
     return (
       <div className="fixed bottom-4 inset-x-0 z-50 flex justify-center px-4">
         <div
-          className={`max-w-md w-full rounded-2xl shadow-xl px-4 py-3 sm:px-5 sm:py-3.5 flex gap-3 items-start ${bgClass}`}
+          className={`max-w-md w-full rounded-2xl shadow-xl px-4 py-3 sm:px-5 sm:py-3.5 flex gap-3 items-start ${bgClass} transition-opacity duration-300`}
         >
           <Icon className="mt-0.5 shrink-0" size={18} />
           <div className="text-sm sm:text-base leading-snug">
@@ -209,11 +209,7 @@ function Quiz() {
           isMobile &&
           (reason === "tab-switch-or-minimize" || reason === "window-blur")
         ) {
-          // message style A
-          showToast(
-            "Focus lost — timer paused. Return to quiz.",
-            "warning"
-          );
+          showToast("Focus lost — timer paused. Return to quiz.", "warning");
         } else if (
           !isMobile ||
           (reason !== "tab-switch-or-minimize" &&
@@ -608,11 +604,12 @@ function Quiz() {
     };
   }, [registered, submitted, invalidated, registerViolation]);
 
-      const handleFsChange = useCallback(() => {
-      if (!isInFullscreen()) {
-        registerViolation("fullscreen-exit");
-      }
-    }, [registerViolation]);
+  /* Fullscreen exit handler (desktop) */
+  const handleFsChange = useCallback(() => {
+    if (!isInFullscreen()) {
+      registerViolation("fullscreen-exit");
+    }
+  }, [registerViolation]);
 
   // Fullscreen exit watcher (desktop only)
   useEffect(() => {
@@ -629,7 +626,7 @@ function Quiz() {
       document.removeEventListener("mozfullscreenchange", handleFsChange);
       document.removeEventListener("MSFullscreenChange", handleFsChange);
     };
-  }, [registered, submitted, invalidated, isMobile, handleFsChange, registerViolation]);
+  }, [registered, submitted, invalidated, isMobile, handleFsChange]);
 
   // Tab switch / blur (both desktop & mobile)
   useEffect(() => {
@@ -677,7 +674,7 @@ function Quiz() {
   ============================ */
 
   const renderPixelOverlay = () =>
-    !isMobile && (
+    !isMobile && fullscreenLost && (
       <div className="fixed inset-0 z-40 bg-black/80 flex flex-col items-center justify-center text-white text-center px-6">
         <ShieldAlert size={32} className="text-amber-400 mb-3 animate-pulse" />
         <h2 className="text-xl font-bold mb-2">Oops! You left fullscreen</h2>
@@ -704,83 +701,75 @@ function Quiz() {
     );
 
   /* ===========================
-     UI States
+     Screen Renderers
   ============================ */
 
-  // Loading list
-  if (loading && !activeQuiz && !result && !invalidated && !readyToStart)
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-600 dark:text-gray-300 text-base sm:text-lg bg-gray-50 dark:bg-gray-900">
-        {renderToast()}
-        Loading quizzes...
-      </div>
-    );
+  const renderLoading = () => (
+    <div className="min-h-screen flex items-center justify-center text-gray-600 dark:text-gray-300 text-base sm:text-lg bg-gray-50 dark:bg-gray-900">
+      Loading quizzes...
+    </div>
+  );
 
-  // Choose quiz list
-  if (!activeQuiz && !result && !invalidated && !readyToStart)
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-gradient-to-br from-teal-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        {console.log("Rendered") && renderToast()}
-        <h2 className="text-3xl font-bold text-teal-600 dark:text-teal-400 mb-2 text-center">
-          Available Quizzes
-        </h2>
-        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">
-          {isMobile
-            ? "Mobile secure mode enabled. For stricter protection, use a laptop/desktop."
-            : "Your quiz will run in secure fullscreen. Use a laptop/desktop for best experience."}
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-4xl">
-          {quizStatus.map((q) => (
-            <div
-              key={q._id}
-              className={`p-5 sm:p-6 rounded-2xl shadow-md border transition-all duration-300 hover:shadow-2xl ${
-                q.attempted
-                  ? "bg-gray-900 border-emerald-500"
-                  : "bg-gray-800 border-teal-500 hover:border-teal-400"
-              }`}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <h3 className="font-semibold text-lg text-white flex items-center gap-2">
-                  <PlayCircle className="text-teal-400" size={20} />
-                  {q.title}
-                </h3>
-              </div>
-              <p className="text-gray-300 text-sm mb-4 leading-relaxed line-clamp-3">
-                {q.description || "No description available."}
-              </p>
-
-              {q.attempted ? (
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs sm:text-sm text-gray-200">
-                  <div className="flex items-center gap-2 text-emerald-400 font-medium">
-                    <CheckCircle2 size={16} />
-                    <span>Submitted</span>
-                  </div>
-                  {typeof q.score === "number" &&
-                    typeof q.totalQuestions === "number" && (
-                      <span className="font-medium">
-                        Score: {q.score}/{q.totalQuestions}
-                      </span>
-                    )}
-                </div>
-              ) : (
-                <button
-                  onClick={() => handleStartQuiz(q._id)}
-                  className="w-full mt-2 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium text-sm transition-all shadow-md hover:shadow-lg"
-                >
-                  Start Quiz
-                </button>
-              )}
+  const renderQuizList = () => (
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-gradient-to-br from-teal-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-opacity duration-300">
+      <h2 className="text-3xl font-bold text-teal-600 dark:text-teal-400 mb-2 text-center">
+        Available Quizzes
+      </h2>
+      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">
+        {isMobile
+          ? "Mobile secure mode enabled. For stricter protection, use a laptop/desktop."
+          : "Your quiz will run in secure fullscreen. Use a laptop/desktop for best experience."}
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-4xl">
+        {quizStatus.map((q) => (
+          <div
+            key={q._id}
+            className={`p-5 sm:p-6 rounded-2xl shadow-md border transition-all duration-300 hover:shadow-2xl ${
+              q.attempted
+                ? "bg-gray-900 border-emerald-500"
+                : "bg-gray-800 border-teal-500 hover:border-teal-400"
+            }`}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="font-semibold text-lg text-white flex items-center gap-2">
+                <PlayCircle className="text-teal-400" size={20} />
+                {q.title}
+              </h3>
             </div>
-          ))}
-        </div>
-      </div>
-    );
+            <p className="text-gray-300 text-sm mb-4 leading-relaxed line-clamp-3">
+              {q.description || "No description available."}
+            </p>
 
-  // Pre-start secure screen (desktop only)
-  if (readyToStart && !registered && pendingQuiz && !isMobile)
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-gray-900 via-gray-950 to-black text-white">
-        {renderToast()}
+            {q.attempted ? (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs sm:text-sm text-gray-200">
+                <div className="flex items-center gap-2 text-emerald-400 font-medium">
+                  <CheckCircle2 size={16} />
+                  <span>Submitted</span>
+                </div>
+                {typeof q.score === "number" &&
+                  typeof q.totalQuestions === "number" && (
+                    <span className="font-medium">
+                      Score: {q.score}/{q.totalQuestions}
+                    </span>
+                  )}
+              </div>
+            ) : (
+              <button
+                onClick={() => handleStartQuiz(q._id)}
+                className="w-full mt-2 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium text-sm transition-all shadow-md hover:shadow-lg"
+              >
+                Start Quiz
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderSecureStart = () =>
+    readyToStart && !registered && pendingQuiz && !isMobile ? (
+      <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-gray-900 via-gray-950 to-black text-white transition-opacity duration-300">
         <div className="max-w-md w-full bg-gray-900/80 border border-teal-500/60 rounded-2xl shadow-2xl p-6 sm:p-8">
           <div className="flex items-center gap-3 mb-4">
             <ShieldAlert className="text-teal-400" size={22} />
@@ -789,8 +778,9 @@ function Quiz() {
             </h2>
           </div>
           <p className="text-sm text-gray-300 mb-3">
-            Your quiz <span className="font-semibold">{pendingQuiz.title}</span>{" "}
-            will run in fullscreen with security monitoring.
+            Your quiz{" "}
+            <span className="font-semibold">{pendingQuiz.title}</span> will run
+            in fullscreen with security monitoring.
           </p>
           <ul className="text-xs sm:text-sm text-gray-400 mb-4 list-disc list-inside space-y-1">
             <li>Do not switch tabs or minimize the window.</li>
@@ -812,13 +802,11 @@ function Quiz() {
           </div>
         </div>
       </div>
-    );
+    ) : null;
 
-  // Invalidated screen
-  if (invalidated)
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 text-center bg-gradient-to-br from-red-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        {renderToast()}
+  const renderInvalidated = () =>
+    invalidated ? (
+      <div className="min-h-screen flex items-center justify-center p-6 text-center bg-gradient-to-br from-red-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-opacity duration-300">
         <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl max-w-md w-full border border-red-300/60 dark:border-red-500/40">
           <h2 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-3">
             Attempt Invalidated
@@ -832,13 +820,11 @@ function Quiz() {
           </p>
         </div>
       </div>
-    );
+    ) : null;
 
-  // Result screen (persists after refresh)
-  if (result)
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 text-center bg-gradient-to-br from-teal-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        {console.log("rendered") && renderToast()}
+  const renderResult = () =>
+    result ? (
+      <div className="min-h-screen flex items-center justify-center p-6 text-center bg-gradient-to-br from-teal-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-opacity duration-300">
         <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl max-w-md w-full border border-teal-200/70 dark:border-teal-500/40">
           <h2 className="text-2xl font-bold text-teal-600 dark:text-teal-400 mb-3">
             Your Result 🎯
@@ -863,51 +849,51 @@ function Quiz() {
           </p>
         </div>
       </div>
-    );
+    ) : null;
 
-  if (!activeQuiz?.questions || activeQuiz.questions.length === 0)
+  const renderQuizUI = () => {
+    if (!activeQuiz?.questions || activeQuiz.questions.length === 0) {
+      return (
+        <div className="flex items-center justify-center min-h-screen text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900">
+          Quiz data unavailable. Please try again later.
+        </div>
+      );
+    }
+
+    const q = activeQuiz.questions[index];
+    const progress = ((index + 1) / activeQuiz.questions.length) * 100;
+
     return (
-      <div className="flex items-center justify-center min-h-screen text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900">
-        {renderToast()}
-        Quiz data unavailable. Please try again later.
-      </div>
-    );
+      <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 bg-gray-50 dark:bg-gray-900 relative transition-opacity duration-300">
+        {renderPixelOverlay()}
+        {renderCountdownOverlay()}
 
-  // Main quiz UI
-  const q = activeQuiz.questions[index];
-  const progress = ((index + 1) / activeQuiz.questions.length) * 100;
-
-  return (
-    <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 bg-gray-50 dark:bg-gray-900 relative">
-      {renderToast()}
-      {fullscreenLost && renderPixelOverlay()}
-      {renderCountdownOverlay()}
-
-      <div
-        className={`max-w-6xl w-full grid grid-cols-1 md:grid-cols-[240px,1fr] gap-4 sm:gap-6 transition-filter ${
-          fullscreenLost ? "blur-md pointer-events-none" : ""
-        }`}
-      >
-        {/* Sidebar: Question Map */}
-        <aside className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200/70 dark:border-gray-700/60 p-4 flex flex-col">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
-            <ShieldAlert size={16} className="text-teal-500" />
-            Question Map
-          </h3>
-          <div className="grid grid-cols-5 gap-2 mb-3">
-            {activeQuiz.questions.map((_, i) => {
-              const isCurrent = i === index;
-              const answered = answers[i] !== null && answers[i] !== undefined;
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => {
-                    setIndex(i);
-                    setTimeLeft(30);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className={`h-8 w-8 flex items-center justify-center rounded-full text-xs font-semibold transition-all 
+        <div
+          className={`max-w-6xl w-full grid grid-cols-1 md:grid-cols-[240px,1fr] gap-4 sm:gap-6 transition-filter ${
+            fullscreenLost ? "blur-md pointer-events-none" : ""
+          }`}
+        >
+          {/* Sidebar: Question Map */}
+          <aside className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200/70 dark:border-gray-700/60 p-4 flex flex-col">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+              <ShieldAlert size={16} className="text-teal-500" />
+              Question Map
+            </h3>
+            <div className="grid grid-cols-5 gap-2 mb-3">
+              {activeQuiz.questions.map((_, i) => {
+                const isCurrent = i === index;
+                const answered =
+                  answers[i] !== null && answers[i] !== undefined;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      setIndex(i);
+                      setTimeLeft(30);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className={`h-8 w-8 flex items-center justify-center rounded-full text-xs font-semibold transition-all 
                     ${
                       isCurrent
                         ? "bg-teal-600 text-white shadow-md"
@@ -915,108 +901,153 @@ function Quiz() {
                         ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-700 dark:text-emerald-100"
                         : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
                     }`}
+                  >
+                    {i + 1}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-auto text-[11px] text-gray-500 dark:text-gray-400">
+              <p>
+                Strikes:{" "}
+                <span className="font-semibold text-amber-500">
+                  {violations}/3
+                </span>
+              </p>
+              {!isMobile && (
+                <p className="mt-1">
+                  Press{" "}
+                  <span className="px-1 rounded bg-gray-800 text-[10px] border border-gray-600">
+                    F
+                  </span>{" "}
+                  to re-enter fullscreen if paused.
+                </p>
+              )}
+            </div>
+          </aside>
+
+          {/* Main Quiz Card */}
+          <main className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 sm:p-7 border border-gray-200/70 dark:border-gray-700/60">
+            <div className="flex justify-between items-center mb-4 sm:mb-6">
+              <div>
+                <h2 className="text-base sm:text-xl font-bold text-teal-600 dark:text-teal-400">
+                  {activeQuiz.title}
+                </h2>
+                <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Question {index + 1} of {activeQuiz.questions.length}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="font-semibold text-sm sm:text-base text-red-500">
+                  ⏱ {timeLeft}s
+                </p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  Strikes: {violations}/3
+                </p>
+              </div>
+            </div>
+
+            <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full mb-4 overflow-hidden">
+              <div
+                className="h-2 bg-teal-500 transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+
+            <h3 className="text-sm sm:text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
+              {q.question}
+            </h3>
+
+            <div className="space-y-2 sm:space-y-3 mb-5">
+              {q.options.map((opt, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => {
+                    const updated = [...answers];
+                    updated[index] = i;
+                    setAnswers(updated);
+                  }}
+                  className={`w-full text-left px-3 sm:px-4 py-2 sm:py-3 rounded-xl border transition-all text-sm sm:text-base ${
+                    answers[index] === i
+                      ? "bg-teal-600 text-white border-teal-600 shadow-md scale-[1.01]"
+                      : "bg-white hover:bg-teal-50 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 border-gray-300 dark:border-gray-600"
+                  }`}
                 >
-                  {i + 1}
+                  {opt}
                 </button>
-              );
-            })}
-          </div>
-          <div className="mt-auto text-[11px] text-gray-500 dark:text-gray-400">
-            <p>
-              Strikes:{" "}
-              <span className="font-semibold text-amber-500">
-                {violations}/3
-              </span>
-            </p>
-            {!isMobile && (
-              <p className="mt-1">
-                Press{" "}
-                <span className="px-1 rounded bg-gray-800 text-[10px] border border-gray-600">
-                  F
-                </span>{" "}
-                to re-enter fullscreen if paused.
-              </p>
-            )}
-          </div>
-        </aside>
-
-        {/* Main Quiz Card */}
-        <main className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 sm:p-7 border border-gray-200/70 dark:border-gray-700/60">
-          <div className="flex justify-between items-center mb-4 sm:mb-6">
-            <div>
-              <h2 className="text-base sm:text-xl font-bold text-teal-600 dark:text-teal-400">
-                {activeQuiz.title}
-              </h2>
-              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Question {index + 1} of {activeQuiz.questions.length}
-              </p>
+              ))}
             </div>
-            <div className="text-right">
-              <p className="font-semibold text-sm sm:text-base text-red-500">
-                ⏱ {timeLeft}s
-              </p>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                Strikes: {violations}/3
-              </p>
-            </div>
-          </div>
 
-          <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full mb-4 overflow-hidden">
-            <div
-              className="h-2 bg-teal-500 transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            ></div>
-          </div>
-
-          <h3 className="text-sm sm:text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
-            {q.question}
-          </h3>
-
-          <div className="space-y-2 sm:space-y-3 mb-5">
-            {q.options.map((opt, i) => (
+            <div className="flex justify-end mt-2">
               <button
-                key={i}
                 type="button"
                 onClick={() => {
-                  const updated = [...answers];
-                  updated[index] = i;
-                  setAnswers(updated);
+                  if (index === activeQuiz.questions.length - 1) {
+                    handleSubmit(false);
+                  } else {
+                    setIndex((i) => i + 1);
+                    setTimeLeft(30);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
                 }}
-                className={`w-full text-left px-3 sm:px-4 py-2 sm:py-3 rounded-xl border transition-all text-sm sm:text-base ${
-                  answers[index] === i
-                    ? "bg-teal-600 text-white border-teal-600 shadow-md scale-[1.01]"
-                    : "bg-white hover:bg-teal-50 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 border-gray-300 dark:border-gray-600"
+                disabled={
+                  answers[index] === null || answers[index] === undefined
+                }
+                className={`px-5 py-2 sm:px-6 sm:py-2.5 rounded-xl font-medium text-sm sm:text-base ${
+                  answers[index] === null || answers[index] === undefined
+                    ? "bg-gray-400/80 cursor-not-allowed text-white"
+                    : "bg-teal-600 hover:bg-teal-700 text-white shadow-md hover:shadow-lg"
                 }`}
               >
-                {opt}
+                {index === activeQuiz.questions.length - 1
+                  ? "Submit"
+                  : "Next →"}
               </button>
-            ))}
-          </div>
-
-          <div className="flex justify-end mt-2">
-            <button
-              type="button"
-              onClick={() => {
-                if (index === activeQuiz.questions.length - 1) {
-                  handleSubmit(false);
-                } else {
-                  setIndex((i) => i + 1);
-                  setTimeLeft(30);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }
-              }}
-              disabled={answers[index] === null || answers[index] === undefined}
-              className={`px-5 py-2 sm:px-6 sm:py-2.5 rounded-xl font-medium text-sm sm:text-base ${
-                answers[index] === null || answers[index] === undefined
-                  ? "bg-gray-400/80 cursor-not-allowed text-white"
-                  : "bg-teal-600 hover:bg-teal-700 text-white shadow-md hover:shadow-lg"
-              }`}
-            >
-              {index === activeQuiz.questions.length - 1 ? "Submit" : "Next →"}
-            </button>
-          </div>
-        </main>
+            </div>
+          </main>
+        </div>
       </div>
+    );
+  };
+
+  /* ===========================
+     Decide which screen to show
+  ============================ */
+
+  const renderScreen = () => {
+    if (loading && !activeQuiz && !result && !invalidated && !readyToStart) {
+      return renderLoading();
+    }
+
+    if (invalidated) {
+      return renderInvalidated();
+    }
+
+    if (result) {
+      return renderResult();
+    }
+
+    if (readyToStart && !registered && pendingQuiz && !isMobile) {
+      return renderSecureStart();
+    }
+
+    if (!activeQuiz && !registered && !result && !invalidated) {
+      return renderQuizList();
+    }
+
+    // Active quiz UI
+    return renderQuizUI();
+  };
+
+  /* ===========================
+     Single Return
+  ============================ */
+
+  return (
+    <div className="min-h-screen w-full bg-gray-50 dark:bg-gray-900">
+      {renderToast()}
+      {renderScreen()}
     </div>
   );
 }
