@@ -87,6 +87,13 @@ router.post("/invalidate/:id", authMiddleware, async (req, res) => {
 // 🎯 Submit
 router.post("/submit/:id", authMiddleware, async (req, res) => {
   const { answers, violations } = req.body;
+    const existing = await QuizAttempt.findOne({
+    quizId: quiz._id,
+    userId: req.user._id,
+  });
+
+  if (existing)
+    return res.status(400).json({ message: "You have already completed this quiz." });
 
   const quiz = await Quiz.findById(req.params.id);
 
@@ -110,6 +117,24 @@ router.post("/submit/:id", authMiddleware, async (req, res) => {
 
   await attempt.save();
   res.json({ score, totalQuestions: quiz.questions.length, earnedCoins: earned });
+});
+
+router.get("/result/:id", authMiddleware, async (req, res) => {
+  const attempt = await QuizAttempt.findOne({
+    quizId: req.params.id,
+    userId: req.user._id
+  });
+
+  if (!attempt)
+    return res.status(404).json({ message: "No attempt found" });
+
+  res.json({
+    score: attempt.score,
+    totalQuestions: attempt.answers.length,
+    earnedCoins: attempt.earnedCoins,
+    violations: attempt.violations,
+    answers: attempt.answers
+  });
 });
 
 export default router;
