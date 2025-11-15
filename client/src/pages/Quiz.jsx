@@ -612,11 +612,12 @@ function Quiz() {
   useEffect(() => {
     if (!registered || submitted || invalidated || isMobile) return;
 
-    const handleFsChange = () => {
-      if (!isInFullscreen()) {
-        registerViolation("fullscreen-exit");
-      }
-    };
+    const handleFsChange = useCallback(() => {
+  if (!isInFullscreen()) {
+    registerViolation("fullscreen-exit");
+  }
+}, [registerViolation]);
+
 
     document.addEventListener("fullscreenchange", handleFsChange);
     document.addEventListener("webkitfullscreenchange", handleFsChange);
@@ -629,7 +630,7 @@ function Quiz() {
       document.removeEventListener("mozfullscreenchange", handleFsChange);
       document.removeEventListener("MSFullscreenChange", handleFsChange);
     };
-  }, [registered, submitted, invalidated, isMobile, registerViolation]);
+  }, [registered, submitted, invalidated, isMobile, handleFsChange, registerViolation]);
 
   // Tab switch / blur (both desktop & mobile)
   useEffect(() => {
@@ -720,7 +721,7 @@ function Quiz() {
   if (!activeQuiz && !result && !invalidated && !readyToStart)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-gradient-to-br from-teal-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        {renderToast()}
+        {console.log("Rendered") && renderToast()}
         <h2 className="text-3xl font-bold text-teal-600 dark:text-teal-400 mb-2 text-center">
           Available Quizzes
         </h2>
