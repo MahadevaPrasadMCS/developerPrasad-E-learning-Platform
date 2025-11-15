@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
@@ -7,161 +7,218 @@ function Wallet() {
   const { token, user } = useAuth();
   const navigate = useNavigate();
 
-  const [wallet, setWallet] = useState(null);
+  const [wallet, setWallet] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+
   const [filter, setFilter] = useState("All");
+  const [sort, setSort] = useState("recent");
+  const [search, setSearch] = useState("");
+
+  const limit = 8;
+
+  const fetchWallet = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/wallet?page=${page}&limit=${limit}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setWallet(res.data.transactions);
+      setTotalPages(res.data.totalPages);
+    } catch (err) {
+      console.error("Wallet fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!token) return;
-    const fetchWallet = async () => {
-      try {
-        const res = await api.get("/wallet", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setWallet(res.data);
-      } catch (err) {
-        console.error("Error fetching wallet:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchWallet();
-  }, [token]);
+    if (token) fetchWallet();
+  }, [token, page]);
 
-  const handleRedeem = () => navigate("/store");
+  const exportCSV = () => {
+    if (!wallet.length) return;
 
-  const filteredTransactions =
-    filter === "All"
-      ? wallet?.transactions || []
-      : wallet?.transactions?.filter((t) =>
-          filter === "Earn" ? t.type === "earn" : t.type === "spend"
-        );
+    const csv = [
+      "Type,Amount,Description,Date",
+      ...wallet.map(
+        (t) =>
+          `${t.type},${t.amount},${t.description || ""},${new Date(
+            t.createdAt
+          ).toLocaleString()}`
+      ),
+    ].join("\n");
 
-  if (!user)
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-600 dark:text-gray-300 text-lg">
-        Please log in to view your wallet.
-      </div>
-    );
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "wallet-transactions.csv";
+    link.click();
+  };
 
-  if (loading)
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500 dark:text-gray-400 text-lg animate-pulse">
-        Loading wallet details...
-      </div>
-    );
+  const filtered = useMemo(() => {
+    let records = [...wallet];
 
-  if (!wallet)
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-600 dark:text-gray-300">
-        Could not load wallet data.
-      </div>
-    );
+    if (filter !== "All")
+      records = records.filter((t) => t.type === filter.toLowerCase());
+
+    if (search.trim())
+      records = records.filter(
+        (t) =>
+          t.description?.toLowerCase().includes(search.toLowerCase()) ||
+          String(t.amount).includes(search)
+      );
+
+    if (sort === "amount-high")
+      records.sort((a, b) => b.amount - a.amount);
+    else if (sort === "amount-low")
+      records.sort((a, b) => a.amount - b.amount);
+    else
+      records.sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+
+    return records;
+  }, [wallet, filter, search, sort]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-12 px-6 animate-fade-in">
-      <div className="max-w-5xl mx-auto space-y-10">
-        {/* 💰 Header */}
-        <h2 className="text-4xl font-extrabold text-center text-teal-600 dark:text-teal-400">
-          My Wallet 💰
+    <div className="min-h-screen dark:bg-gray-900 bg-gray-100 py-10 px-6">
+      <div className="max-w-4xl mx-auto space-y-8">
+        
+        <h2 className="text-4xl font-bold text-center text-teal-600 dark:text-teal-400">
+          Wallet
         </h2>
 
-        {/* 🪙 Wallet Summary */}
-        <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300">
-          <p className="text-lg text-gray-800 dark:text-gray-200 mb-2">
-            Hello,{" "}
-            <span className="font-semibold text-teal-600 dark:text-teal-400">
-              {wallet.user.name}
-            </span>
-          </p>
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <p className="text-4xl font-extrabold text-yellow-500 drop-shadow-sm">
-              {wallet.user.coins} 🪙
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 shadow rounded-xl p-6 flex justify-between">
+          <div>
+            <p className="text-gray-700 dark:text-gray-300 font-semibold">
+              {user.name}
             </p>
-            <button
-              onClick={handleRedeem}
-              className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
-            >
-              🛍️ Redeem in Store
-            </button>
+            <p className="text-3xl font-bold text-yellow-500">
+              {user.coins} 🪙
+            </p>
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
-            Earn more coins by participating in weekly quizzes!
-          </p>
+
+          <button
+            onClick={() => navigate("/store")}
+            className="px-5 py-2 bg-teal-600 hover:bg-teal-700 rounded text-white shadow"
+          >
+            Redeem Items
+          </button>
         </div>
 
-        {/* 🔎 Filter Tabs */}
-        <div className="flex justify-center space-x-3 mb-6">
-          {["All", "Earn", "Spend"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setFilter(tab)}
-              className={`px-5 py-2 rounded-full text-sm sm:text-base font-medium transition-all duration-300 ${
-                filter === tab
-                  ? "bg-teal-600 text-white shadow-md scale-105"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-teal-500 hover:text-white"
-              }`}
-            >
-              {tab === "Earn" ? "🟢 Earned" : tab === "Spend" ? "🟡 Spent" : "✨ All"}
-            </button>
-          ))}
+        {/* Controls */}
+        <div className="flex flex-wrap gap-3 justify-between items-center">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg border dark:bg-gray-700 text-sm"
+          >
+            <option>All</option>
+            <option>Earn</option>
+            <option>Spend</option>
+          </select>
+
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="px-3 py-2 rounded-lg border dark:bg-gray-700 text-sm"
+          >
+            <option value="recent">Newest First</option>
+            <option value="amount-high">Amount: High → Low</option>
+            <option value="amount-low">Amount: Low → High</option>
+          </select>
+
+          <input
+            placeholder="Search description"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="px-3 py-2 rounded-lg border dark:bg-gray-700 text-sm w-32 sm:w-48"
+          />
+
+          <button
+            onClick={exportCSV}
+            className="px-4 py-2 bg-blue-600 text-white rounded shadow text-sm"
+          >
+            Export CSV
+          </button>
         </div>
 
-        {/* 📜 Transaction History */}
-        <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-8 rounded-2xl shadow-lg transition-all duration-300">
-          <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-6 text-center">
-            Transaction History
-          </h3>
-
-          {filteredTransactions.length === 0 ? (
-            <p className="text-center text-gray-500 dark:text-gray-400">
-              No {filter !== "All" ? filter.toLowerCase() : ""} transactions yet.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {filteredTransactions.map((t, index) => (
-                <div
-                  key={t._id}
-                  className={`p-5 rounded-xl shadow-sm border-l-4 transition-all duration-300 ${
-                    t.type === "earn"
-                      ? "bg-green-50 dark:bg-green-900/30 border-green-500 hover:shadow-md"
-                      : "bg-yellow-50 dark:bg-yellow-900/30 border-yellow-500 hover:shadow-md"
-                  } animate-fade-in`}
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <div className="flex justify-between flex-wrap gap-3 items-center">
-                    <div>
-                      <p className="font-semibold capitalize text-gray-800 dark:text-gray-200">
-                        {t.type === "earn" ? "Earned" : "Spent"}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {t.description}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p
-                        className={`text-lg font-bold ${
-                          t.type === "earn"
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-yellow-600 dark:text-yellow-400"
-                        }`}
-                      >
-                        {t.type === "earn" ? "+" : "-"}
-                        {t.amount} 🪙
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(t.createdAt).toLocaleString(undefined, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+        {/* Transactions */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow">
+          {loading ? (
+            [...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="animate-pulse h-14 bg-gray-200 dark:bg-gray-700 rounded mb-4"
+              />
+            ))
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-10 text-gray-500">
+              No Records Found
             </div>
+          ) : (
+            filtered.map((t, i) => (
+              <div
+                key={i}
+                className={`flex justify-between items-center p-4 rounded border-l-4 mb-3 ${
+                  t.type === "earn"
+                    ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                    : "border-red-500 bg-red-50 dark:bg-red-900/20"
+                }`}
+              >
+                <div>
+                  <p className="font-semibold capitalize">
+                    {t.type}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(t.createdAt).toLocaleString()}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {t.description}
+                  </p>
+                </div>
+
+                <p
+                  className={`${t.type === "earn"
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-red-600 dark:text-red-400"
+                    } font-bold text-lg`}
+                >
+                  {t.type === "earn" ? "+" : "-"}
+                  {t.amount}
+                </p>
+              </div>
+            ))
           )}
         </div>
+
+        {/* Pagination */}
+        <div className="flex justify-between">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+            className="px-4 py-2 border rounded disabled:opacity-40"
+          >
+            Prev
+          </button>
+
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            Page {page} of {totalPages}
+          </span>
+
+          <button
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+            className="px-4 py-2 border rounded disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+
       </div>
     </div>
   );
