@@ -401,6 +401,26 @@ function Quiz() {
   );
 
   /* ===========================
+     View Result for an attempted quiz
+  ============================*/
+  const handleViewResult = useCallback(
+    async (quizId) => {
+      try {
+        setLoading(true);
+        const res = await api.get(`/quiz/result/${quizId}`, { headers: authHeader });
+        setResult(res.data);
+        sessionStorage.setItem(QUIZ_RESULT_KEY, JSON.stringify(res.data));
+      } catch (err) {
+        console.error("Fetch result error:", err);
+        showToast("Failed to fetch result. Try again.", "error");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [authHeader, showToast]
+  );
+
+  /* ===========================
      Keydown (F to fullscreen) - added once while token exists
      Uses refs to read latest state
   ============================*/
@@ -672,14 +692,22 @@ function Quiz() {
             <p className="text-gray-300 text-sm mb-4 leading-relaxed line-clamp-3">{q.description || "No description available."}</p>
 
             {q.attempted ? (
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs sm:text-sm text-gray-200">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm text-gray-200">
                 <div className="flex items-center gap-2 text-emerald-400 font-medium">
                   <CheckCircle2 size={16} />
                   <span>Submitted</span>
                 </div>
-                {typeof q.score === "number" && typeof q.totalQuestions === "number" && (
-                  <span className="font-medium">Score: {q.score}/{q.totalQuestions}</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {typeof q.score === "number" && typeof q.totalQuestions === "number" && (
+                    <span className="font-medium text-xs">Score: {q.score}/{q.totalQuestions}</span>
+                  )}
+                  <button
+                    onClick={() => handleViewResult(q._id)}
+                    className="ml-2 px-3 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                  >
+                    View Result
+                  </button>
+                </div>
               </div>
             ) : (
               <button
@@ -741,6 +769,32 @@ function Quiz() {
           <p className="text-gray-700 dark:text-gray-200 text-base">Accuracy: {result.accuracy ?? ((result.score / result.totalQuestions) * 100).toFixed(2)}%</p>
           <p className="text-gray-700 dark:text-gray-200 text-base">Coins Earned: 🪙 {result.earnedCoins}</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">New Balance: {result.newBalance ?? "—"}</p>
+
+          <div className="mt-6 flex justify-center gap-3">
+            <button
+              onClick={() => {
+                // Clear result and return to quiz list
+                setResult(null);
+                setActiveQuiz(null);
+                setPendingQuiz(null);
+                setRegistered(false);
+                setSubmitted(false);
+                setInvalidated(false);
+                // refresh quiz list to get latest statuses
+                (async () => {
+                  try {
+                    const res = await api.get("/quiz/status/me", { headers: authHeader });
+                    setQuizStatus(res.data || []);
+                  } catch (err) {
+                    console.error("Failed to refresh quiz status:", err);
+                  }
+                })();
+              }}
+              className="px-4 py-2 rounded-md bg-teal-600 hover:bg-teal-700 text-white"
+            >
+              Back to quizzes
+            </button>
+          </div>
         </div>
       </div>
     ) : null;
@@ -872,6 +926,7 @@ function Quiz() {
   };
 
   const renderScreen = () => {
+    // If user saw a result and returned, we want to show quizzes list by default when result is cleared.
     if (loading && !activeQuiz && !result && !invalidated && !readyToStart) {
       return renderLoading();
     }
