@@ -101,7 +101,8 @@ function Toast({ toast }) {
 
 function SummaryCard({ label, value }) {
   return (
-    <div className="bg-white/90 dark:bg-slate-900/85 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3 sm:p-5 text-center shadow-sm hover:shadow-md transition-shadow duration-200">
+    <div className="bg-white/90 dark:bg-slate-900/85 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3 sm:p-5 text-center 
+      shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 animate-fade cursor-pointer">
       <p className="text-slate-500 dark:text-slate-400 mb-1 text-[11px] sm:text-xs uppercase tracking-wide">
         {label}
       </p>
@@ -137,6 +138,7 @@ function SectionCard({ title, subtitle, actions, children }) {
   );
 }
 
+/* ================= PREMIUM DATE PICKER 2025 ================= */
 /* ======================= Custom Calendar ======================= */
 
 function CalendarGrid({ monthDate, selected, onSelect }) {
@@ -149,6 +151,9 @@ function CalendarGrid({ monthDate, selected, onSelect }) {
   const cells = [];
   let currentDay = 1 - startDay;
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   for (let week = 0; week < 6; week++) {
     const row = [];
     for (let dow = 0; dow < 7; dow++) {
@@ -157,11 +162,19 @@ function CalendarGrid({ monthDate, selected, onSelect }) {
       const iso = dateToISO(cellDate);
       const isSelected = selected && iso === selected;
 
+      const cellClone = new Date(
+        cellDate.getFullYear(),
+        cellDate.getMonth(),
+        cellDate.getDate()
+      );
+      const isFuture = cellClone > today;
+
       row.push({
         date: cellDate,
         inCurrent,
         iso,
         isSelected,
+        isFuture,
         key: `${year}-${month}-${week}-${dow}`,
       });
       currentDay++;
@@ -180,22 +193,27 @@ function CalendarGrid({ monthDate, selected, onSelect }) {
         </div>
       ))}
       {cells.map((row) =>
-        row.map((cell) => (
-          <button
-            key={cell.key}
-            type="button"
-            onClick={() => cell.inCurrent && onSelect(cell.date)}
-            className={`h-7 sm:h-8 rounded-full flex items-center justify-center transition-colors ${
-              !cell.inCurrent
-                ? "text-slate-300 dark:text-slate-600"
-                : cell.isSelected
-                ? "bg-emerald-500 text-white font-semibold"
-                : "text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700"
-            }`}
-          >
-            {cell.date.getDate()}
-          </button>
-        ))
+        row.map((cell) => {
+          const disabled = !cell.inCurrent || cell.isFuture;
+          return (
+            <button
+              key={cell.key}
+              type="button"
+              disabled={disabled}
+              onClick={() => !disabled && onSelect(cell.date)}
+              className={[
+                "h-7 sm:h-8 rounded-full flex items-center justify-center transition-colors",
+                disabled
+                  ? "text-slate-300 dark:text-slate-600 cursor-not-allowed"
+                  : cell.isSelected
+                  ? "bg-emerald-500 text-white font-semibold shadow-sm"
+                  : "text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700",
+              ].join(" ")}
+            >
+              {cell.date.getDate()}
+            </button>
+          );
+        })
       )}
     </div>
   );
@@ -203,54 +221,109 @@ function CalendarGrid({ monthDate, selected, onSelect }) {
 
 function DatePickerField({ label, value, onChange, id }) {
   const [open, setOpen] = useState(false);
-  const [viewMonth, setViewMonth] = useState(() => {
-    const d = isoToDate(value);
-    return d || new Date();
+  const [mode, setMode] = useState("date"); // "date" | "month" | "year"
+
+  const initialDate = isoToDate(value) || new Date();
+  const [viewMonth, setViewMonth] = useState(initialDate);
+
+  // decade page for year selection
+  const MIN_YEAR = 1900;
+  const MAX_YEAR = 3000;
+  const [yearPageStart, setYearPageStart] = useState(() => {
+    const y = initialDate.getFullYear();
+    const decadeStart = Math.floor(y / 10) * 10;
+    return Math.min(Math.max(decadeStart, MIN_YEAR), MAX_YEAR - 9);
   });
 
   const wrapperRef = useRef(null);
 
+  // close on outside click
   useEffect(() => {
     function handleClickOutside(e) {
       if (!wrapperRef.current) return;
-      if (!wrapperRef.current.contains(e.target)) setOpen(false);
+      if (!wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+        setMode("date");
+      }
     }
     if (open) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
+  // keep year page anchored to current viewMonth when not explicitly browsing years
+  useEffect(() => {
+    if (mode !== "year") {
+      const y = viewMonth.getFullYear();
+      const decadeStart = Math.floor(y / 10) * 10;
+      setYearPageStart((prev) => {
+        const next = Math.min(Math.max(decadeStart, MIN_YEAR), MAX_YEAR - 9);
+        return next === prev ? prev : next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMonth, mode]);
+
   const handleSelectDate = (date) => {
     const iso = dateToISO(date);
     onChange(iso);
     setViewMonth(date);
-    setOpen(false);
+    setOpen(false); // Auto-close after picking a date
+    setMode("date");
   };
 
   const display = value ? isoToDisplay(value) : "";
 
-  const goMonth = (offset) => {
-    const d = new Date(viewMonth);
-    d.setMonth(d.getMonth() + offset);
-    setViewMonth(d);
+  const handlePrev = () => {
+    if (mode === "year") {
+      setYearPageStart((prev) => Math.max(MIN_YEAR, prev - 10));
+    } else {
+      const d = new Date(viewMonth);
+      d.setMonth(d.getMonth() - 1);
+      setViewMonth(d);
+    }
   };
 
-  const currentYear = new Date().getFullYear();
-  const years = [];
-  for (let y = currentYear - 15; y <= currentYear + 5; y++) years.push(y);
-
-  const handleMonthChange = (e) => {
-    const newMonth = Number(e.target.value);
-    const d = new Date(viewMonth);
-    d.setMonth(newMonth);
-    setViewMonth(d);
+  const handleNext = () => {
+    if (mode === "year") {
+      setYearPageStart((prev) => Math.min(MAX_YEAR - 9, prev + 10));
+    } else {
+      const d = new Date(viewMonth);
+      d.setMonth(d.getMonth() + 1);
+      setViewMonth(d);
+    }
   };
 
-  const handleYearChange = (e) => {
-    const newYear = Number(e.target.value);
-    const d = new Date(viewMonth);
-    d.setFullYear(newYear);
-    setViewMonth(d);
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+
+  const monthLabel = MONTH_NAMES[viewMonth.getMonth()];
+  const yearLabel = viewMonth.getFullYear();
+
+  const canGoPrevYears = yearPageStart > MIN_YEAR;
+  const canGoNextYears = yearPageStart + 9 < MAX_YEAR;
+
+  const openPopover = () => {
+    setMode("date");
+    setOpen((p) => !p);
   };
+
+  const handleMonthClick = (idx) => {
+    const d = new Date(viewMonth);
+    d.setMonth(idx);
+    setViewMonth(d);
+    setMode("date");
+  };
+
+  const handleYearClick = (year) => {
+    if (year > currentYear) return; // future years disabled
+    const d = new Date(viewMonth);
+    d.setFullYear(year);
+    setViewMonth(d);
+    setMode("date");
+  };
+
+  const yearRange = Array.from({ length: 10 }, (_, i) => yearPageStart + i);
 
   return (
     <div className="flex flex-col gap-1 relative" ref={wrapperRef}>
@@ -263,7 +336,7 @@ function DatePickerField({ label, value, onChange, id }) {
       <button
         type="button"
         id={id}
-        onClick={() => setOpen((p) => !p)}
+        onClick={openPopover}
         className="flex items-center justify-between gap-2 w-full rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
       >
         <span className={display ? "" : "text-slate-400 dark:text-slate-500"}>
@@ -273,59 +346,201 @@ function DatePickerField({ label, value, onChange, id }) {
       </button>
 
       {open && (
-        <div className="absolute z-40 top-full mt-2 right-0 sm:right-auto sm:left-0 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 shadow-2xl shadow-slate-900/10 dark:shadow-slate-900/50 p-3 sm:p-4">
+        <div
+          className="absolute z-40 top-full mt-2 right-0 sm:right-auto sm:left-0 w-72 rounded-2xl
+          bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700
+          shadow-2xl shadow-slate-900/10 dark:shadow-slate-900/50
+          p-3 sm:p-4 transform origin-top
+          transition-all duration-150 ease-out scale-100 opacity-100"
+        >
           {/* Month / Year selector + arrows */}
           <div className="flex items-center justify-between mb-3 gap-2">
             <button
               type="button"
-              onClick={() => goMonth(-1)}
-              className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm"
+              onClick={handlePrev}
+              className="px-3 py-2 rounded-xl bg-emerald-500 text-white 
+              hover:bg-emerald-400 hover:shadow-md hover:-translate-y-[1px] 
+              active:scale-95 transition-all duration-200"
             >
               ‹
             </button>
-            <div className="flex-1 flex items-center justify-center gap-1">
-              <select
-                value={viewMonth.getMonth()}
-                onChange={handleMonthChange}
-                className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 rounded-md px-1.5 py-1 text-[11px] text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+
+            <div
+              className="flex-1 flex items-center justify-center gap-1.5
+              rounded-full border border-slate-200/80 dark:border-slate-700
+              bg-slate-50/80 dark:bg-slate-800/70 px-2 py-1"
+            >
+              {/* Month toggle */}
+              <button
+                type="button"
+                onClick={() =>
+                  setMode((prev) => (prev === "month" ? "date" : "month"))
+                }
+                className={[
+                  "px-2 py-0.5 rounded-full text-[11px] sm:text-xs transition-colors",
+                  mode === "month"
+                    ? "bg-emerald-500 text-white shadow-sm"
+                    : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700",
+                ].join(" ")}
               >
-                {MONTH_NAMES.map((m, idx) => (
-                  <option key={m} value={idx}>
-                    {m.slice(0, 3)}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={viewMonth.getFullYear()}
-                onChange={handleYearChange}
-                className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 rounded-md px-1.5 py-1 text-[11px] text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                {monthLabel.slice(0, 3)}
+              </button>
+
+              {/* Year toggle */}
+              <button
+                type="button"
+                onClick={() =>
+                  setMode((prev) => (prev === "year" ? "date" : "year"))
+                }
+                className={[
+                  "px-2 py-0.5 rounded-full text-[11px] sm:text-xs transition-colors",
+                  mode === "year"
+                    ? "bg-emerald-500 text-white shadow-sm"
+                    : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700",
+                ].join(" ")}
               >
-                {years.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
+                {yearLabel}
+              </button>
             </div>
+
             <button
               type="button"
-              onClick={() => goMonth(1)}
-              className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm"
-            >
+              onClick={handleNext}
+              className="px-3 py-2 rounded-xl bg-emerald-500 text-white 
+                hover:bg-emerald-400 hover:shadow-md hover:-translate-y-[1px] 
+                active:scale-95 transition-all duration-200">
               ›
             </button>
           </div>
 
-          <CalendarGrid
-            monthDate={viewMonth}
-            selected={value}
-            onSelect={handleSelectDate}
-          />
+          {/* Body: date / month / year modes */}
+          {mode === "date" && (
+            <CalendarGrid
+              monthDate={viewMonth}
+              selected={value}
+              onSelect={handleSelectDate}
+            />
+          )}
 
+          {mode === "month" && (
+            <div
+              className="grid grid-cols-3 gap-2 text-[11px] sm:text-xs
+              mt-1 pt-1
+              transition-all duration-150 ease-out transform"
+            >
+              {MONTH_NAMES.map((m, idx) => {
+                const isCurrentYear = viewMonth.getFullYear() === currentYear;
+                const isFutureMonth =
+                  isCurrentYear && idx > currentMonth; // still allowed, only years hard-disabled
+                const isSelected = idx === viewMonth.getMonth();
+
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => handleMonthClick(idx)}
+                    className={[
+                      "px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-md hover:-translate-y-[1px] active:scale-95 transition-all duration-200",
+                      isSelected
+                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                        : "border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200",
+                      isFutureMonth ? "" : "",
+                    ].join(" ")}
+                  >
+                    {m.slice(0, 3)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {mode === "year" && (
+            <div className="mt-1 pt-1 space-y-2">
+              <div className="flex items-center justify-between text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 px-1">
+                <span>
+                  {yearPageStart} – {yearPageStart + 9}
+                </span>
+                <span className="italic">Future years disabled</span>
+              </div>
+              <div className="grid grid-cols-5 gap-1.5 text-[11px] sm:text-xs">
+                {yearRange.map((yr) => {
+                  const isSelected = yr === viewMonth.getFullYear();
+                  const isFuture = yr > currentYear;
+                  return (
+                    <button
+                      key={yr}
+                      type="button"
+                      disabled={isFuture}
+                      onClick={() => handleYearClick(yr)}
+                      className={[
+                        "py-1 rounded-lg border text-center transition-colors",
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                          : "border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200",
+                        isFuture
+                          ? "opacity-40 cursor-not-allowed"
+                          : "hover:bg-emerald-50 dark:hover:bg-slate-800/80",
+                      ].join(" ")}
+                    >
+                      {yr}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Year pagination controls */}
+              <div className="flex items-center justify-between mt-1 px-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    canGoPrevYears &&
+                    setYearPageStart((prev) => Math.max(MIN_YEAR, prev - 10))
+                  }
+                  disabled={!canGoPrevYears}
+                  className={[
+                    "text-[11px] px-2 py-1 rounded-full border",
+                    "border-slate-200/80 dark:border-slate-700",
+                    "text-slate-700 dark:text-slate-200",
+                    canGoPrevYears
+                      ? "hover:bg-slate-100 dark:hover:bg-slate-800"
+                      : "opacity-40 cursor-not-allowed",
+                  ].join(" ")}
+                >
+                  ◀
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    canGoNextYears &&
+                    setYearPageStart((prev) =>
+                      Math.min(MAX_YEAR - 9, prev + 10)
+                    )
+                  }
+                  disabled={!canGoNextYears}
+                  className={[
+                    "text-[11px] px-2 py-1 rounded-full border",
+                    "border-slate-200/80 dark:border-slate-700",
+                    "text-slate-700 dark:text-slate-200",
+                    canGoNextYears
+                      ? "hover:bg-slate-100 dark:hover:bg-slate-800"
+                      : "opacity-40 cursor-not-allowed",
+                  ].join(" ")}
+                >
+                 ▶
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Footer: clear / today */}
           <div className="flex justify-between items-center mt-3 text-[11px] text-slate-500 dark:text-slate-400">
             <button
               type="button"
-              onClick={() => onChange("")}
+              onClick={() => {
+                onChange("");
+                setViewMonth(new Date());
+                setMode("date");
+              }}
               className="hover:text-slate-800 dark:hover:text-slate-200"
             >
               Clear
@@ -661,8 +876,8 @@ function AdminDashboard() {
         {coinStats && (
           <section
             aria-label="Overall platform summary"
-            className="px-2 sm:px-4 md:px-6 lg:px-0 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6"
-          >
+            className="bg-white/95 dark:bg-slate-900/85 border border-slate-200/80 dark:border-slate-800 rounded-2xl 
+            shadow-md hover:shadow-emerald-500/10 transition-all duration-300 animate-fade">
             <SummaryCard label="Total Coins" value={coinStats.totalCoins} />
             <SummaryCard
               label="Average Coins / User"
@@ -912,13 +1127,7 @@ function AdminDashboard() {
                     }))
                   )
                 }
-                className="flex items-center justify-center gap-1 text-[10px] sm:text-xs px-3 py-1.5 rounded-xl
-                  border border-slate-200/80 dark:border-slate-700
-                  text-slate-800 dark:text-slate-100
-                  bg-white/80 dark:bg-slate-900/80
-                  hover:bg-slate-100 dark:hover:bg-slate-800
-                  transition-colors shadow-sm"
-              >
+                className= "px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-md hover:-translate-y-[1px] active:scale-95 transition-all duration-200">
                 <Download className="w-3 h-3" />
                 Export CSV
               </button>
@@ -965,7 +1174,10 @@ function AdminDashboard() {
               <div className="overflow-x-auto px-1 sm:px-2 max-h-[300px] overflow-y-auto rounded-lg scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent">
                 <table className="min-w-full text-[11px] sm:text-xs md:text-sm border-collapse">
                   <thead className="sticky top-0 bg-white/70 dark:bg-slate-900/70 backdrop-blur z-10">
-                    <tr className="border-b border-slate-200/80 dark:border-slate-700 text-slate-500 dark:text-slate-400">
+                    <tr className="border-b border-slate-100 dark:border-slate-800 
+                      transition-all duration-200 hover:bg-emerald-50/60 dark:hover:bg-slate-800/60 
+                      hover:-translate-y-[1px]"
+                    >
                       <th className="py-2 px-3 text-left">#</th>
                       <th className="py-2 px-3 text-left">Name</th>
                       <th className="py-2 px-3 text-left hidden md:table-cell">Email</th>
