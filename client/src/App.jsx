@@ -38,6 +38,8 @@ import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import ManageQuiz from "./pages/admin/ManageQuiz";
 import ManageStore from "./pages/admin/ManageStore";
 import UsersPage from "./pages/admin/UsersPage";
+import ProfileRequests from "./pages/admin/ProfileRequests";
+import AdminLogs from "./pages/admin/AdminLogs";
 import AdminUsers from "./pages/admin/AdminUsers";
 import Rewards from "./pages/admin/Rewards";
 
@@ -83,6 +85,8 @@ function App() {
               <Route path="manage-quiz" element={<ManageQuiz />} />
               <Route path="upload-resource" element={<ManageStore />} />
               <Route path="users" element={<UsersPage />} />
+              <Route path="profile-requests" element={<ProfileRequests />} />
+              <Route path="logs" element={<AdminLogs />} />
               <Route path="admin-users" element={<AdminUsers />} />
               <Route path="rewards" element={<Rewards />} />
 
