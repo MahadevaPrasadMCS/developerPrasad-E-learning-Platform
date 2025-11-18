@@ -1,12 +1,14 @@
 // src/pages/admin/AdminDashboard.jsx
-import React, {
+import React,
+{
   useEffect,
   useState,
   useCallback,
   useMemo,
   useRef,
+  Fragment,
 } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import api from "../../utils/api";
 import {
   LineChart,
@@ -30,6 +32,8 @@ import {
   Zap,
   Calendar as CalendarIcon,
 } from "lucide-react";
+import { Listbox, Transition } from "@headlessui/react";
+import { Check, ChevronDown } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 
 /* ======================= Helpers & Constants ======================= */
@@ -80,13 +84,13 @@ function isoToDisplay(iso) {
 function Toast({ toast }) {
   if (!toast) return null;
   const base =
-    "fixed z-50 px-4 py-2 rounded-lg shadow-lg text-xs sm:text-sm font-medium animate-fade-in";
+    "fixed z-50 px-4 py-2 rounded-lg shadow-lg text-xs sm:text-sm font-medium animate-fade-in backdrop-blur-lg";
   const color =
     toast.type === "success"
-      ? "bg-emerald-600 text-white"
+      ? "bg-emerald-600/95 text-white"
       : toast.type === "error"
-      ? "bg-rose-600 text-white"
-      : "bg-amber-500 text-black";
+      ? "bg-rose-600/95 text-white"
+      : "bg-amber-500/95 text-black";
 
   return (
     <div
@@ -99,23 +103,46 @@ function Toast({ toast }) {
   );
 }
 
-function SummaryCard({ label, value }) {
+function SummaryCard({ label, value, accent = "emerald", subLabel }) {
+  const accentMap = {
+    emerald: "text-emerald-600 dark:text-emerald-400",
+    red: "text-rose-600 dark:text-rose-400",
+    blue: "text-sky-600 dark:text-sky-400",
+    amber: "text-amber-600 dark:text-amber-400",
+  };
+
   return (
-    <div className="bg-white/90 dark:bg-slate-900/85 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3 sm:p-5 text-center 
-      shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 animate-fade cursor-pointer">
+    <div
+      className="bg-white/40 dark:bg-slate-900/40 border border-white/40 dark:border-slate-800/70 
+      rounded-2xl p-3 sm:p-5 text-left backdrop-blur-xl
+      shadow-[0_18px_45px_rgba(15,23,42,0.18)]
+      hover:shadow-[0_24px_60px_rgba(16,185,129,0.25)]
+      hover:-translate-y-0.5 transition-all duration-300 animate-fade cursor-pointer"
+    >
       <p className="text-slate-500 dark:text-slate-400 mb-1 text-[11px] sm:text-xs uppercase tracking-wide">
         {label}
       </p>
-      <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 break-words">
+      <h2
+        className={`text-xl sm:text-2xl md:text-3xl font-extrabold break-words ${accentMap[accent]}`}
+      >
         {value ?? "-"}
       </h2>
+      {subLabel && (
+        <p className="mt-1 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">
+          {subLabel}
+        </p>
+      )}
     </div>
   );
 }
 
 function SectionCard({ title, subtitle, actions, children }) {
   return (
-    <section className="bg-white/95 dark:bg-slate-900/85 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-sm dark:shadow-none p-3 sm:p-5 flex flex-col gap-4">
+    <section
+      className="bg-white/40 dark:bg-slate-900/40 border border-white/40 dark:border-slate-800/70
+      rounded-2xl shadow-[0_18px_45px_rgba(15,23,42,0.16)] dark:shadow-[0_18px_45px_rgba(0,0,0,0.7)]
+      backdrop-blur-xl p-3 sm:p-5 flex flex-col gap-4"
+    >
       <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h2 className="text-base sm:text-lg md:text-xl font-semibold text-slate-900 dark:text-slate-50 flex items-center gap-2">
@@ -138,7 +165,6 @@ function SectionCard({ title, subtitle, actions, children }) {
   );
 }
 
-/* ================= PREMIUM DATE PICKER 2025 ================= */
 /* ======================= Custom Calendar ======================= */
 
 function CalendarGrid({ monthDate, selected, onSelect }) {
@@ -207,7 +233,7 @@ function CalendarGrid({ monthDate, selected, onSelect }) {
                   ? "text-slate-300 dark:text-slate-600 cursor-not-allowed"
                   : cell.isSelected
                   ? "bg-emerald-500 text-white font-semibold shadow-sm"
-                  : "text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700",
+                  : "text-slate-900 dark:text-slate-100 hover:bg-slate-100/80 dark:hover:bg-slate-700/80",
               ].join(" ")}
             >
               {cell.date.getDate()}
@@ -226,7 +252,6 @@ function DatePickerField({ label, value, onChange, id }) {
   const initialDate = isoToDate(value) || new Date();
   const [viewMonth, setViewMonth] = useState(initialDate);
 
-  // decade page for year selection
   const MIN_YEAR = 1900;
   const MAX_YEAR = 3000;
   const [yearPageStart, setYearPageStart] = useState(() => {
@@ -237,7 +262,6 @@ function DatePickerField({ label, value, onChange, id }) {
 
   const wrapperRef = useRef(null);
 
-  // close on outside click
   useEffect(() => {
     function handleClickOutside(e) {
       if (!wrapperRef.current) return;
@@ -250,7 +274,6 @@ function DatePickerField({ label, value, onChange, id }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  // keep year page anchored to current viewMonth when not explicitly browsing years
   useEffect(() => {
     if (mode !== "year") {
       const y = viewMonth.getFullYear();
@@ -267,7 +290,7 @@ function DatePickerField({ label, value, onChange, id }) {
     const iso = dateToISO(date);
     onChange(iso);
     setViewMonth(date);
-    setOpen(false); // Auto-close after picking a date
+    setOpen(false);
     setMode("date");
   };
 
@@ -316,7 +339,7 @@ function DatePickerField({ label, value, onChange, id }) {
   };
 
   const handleYearClick = (year) => {
-    if (year > currentYear) return; // future years disabled
+    if (year > currentYear) return;
     const d = new Date(viewMonth);
     d.setFullYear(year);
     setViewMonth(d);
@@ -337,7 +360,7 @@ function DatePickerField({ label, value, onChange, id }) {
         type="button"
         id={id}
         onClick={openPopover}
-        className="flex items-center justify-between gap-2 w-full rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        className="flex items-center justify-between gap-2 w-full rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 backdrop-blur-md"
       >
         <span className={display ? "" : "text-slate-400 dark:text-slate-500"}>
           {display || "dd-mm-yyyy"}
@@ -348,12 +371,11 @@ function DatePickerField({ label, value, onChange, id }) {
       {open && (
         <div
           className="absolute z-40 top-full mt-2 right-0 sm:right-auto sm:left-0 w-72 rounded-2xl
-          bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700
+          bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-700
           shadow-2xl shadow-slate-900/10 dark:shadow-slate-900/50
           p-3 sm:p-4 transform origin-top
-          transition-all duration-150 ease-out scale-100 opacity-100"
+          transition-all duration-150 ease-out scale-100 opacity-100 backdrop-blur-xl"
         >
-          {/* Month / Year selector + arrows */}
           <div className="flex items-center justify-between mb-3 gap-2">
             <button
               type="button"
@@ -370,7 +392,6 @@ function DatePickerField({ label, value, onChange, id }) {
               rounded-full border border-slate-200/80 dark:border-slate-700
               bg-slate-50/80 dark:bg-slate-800/70 px-2 py-1"
             >
-              {/* Month toggle */}
               <button
                 type="button"
                 onClick={() =>
@@ -386,7 +407,6 @@ function DatePickerField({ label, value, onChange, id }) {
                 {monthLabel.slice(0, 3)}
               </button>
 
-              {/* Year toggle */}
               <button
                 type="button"
                 onClick={() =>
@@ -408,12 +428,12 @@ function DatePickerField({ label, value, onChange, id }) {
               onClick={handleNext}
               className="px-3 py-2 rounded-xl bg-emerald-500 text-white 
                 hover:bg-emerald-400 hover:shadow-md hover:-translate-y-[1px] 
-                active:scale-95 transition-all duration-200">
+                active:scale-95 transition-all duration-200"
+            >
               ›
             </button>
           </div>
 
-          {/* Body: date / month / year modes */}
           {mode === "date" && (
             <CalendarGrid
               monthDate={viewMonth}
@@ -431,7 +451,7 @@ function DatePickerField({ label, value, onChange, id }) {
               {MONTH_NAMES.map((m, idx) => {
                 const isCurrentYear = viewMonth.getFullYear() === currentYear;
                 const isFutureMonth =
-                  isCurrentYear && idx > currentMonth; // still allowed, only years hard-disabled
+                  isCurrentYear && idx > currentMonth;
                 const isSelected = idx === viewMonth.getMonth();
 
                 return (
@@ -440,10 +460,10 @@ function DatePickerField({ label, value, onChange, id }) {
                     type="button"
                     onClick={() => handleMonthClick(idx)}
                     className={[
-                      "px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-md hover:-translate-y-[1px] active:scale-95 transition-all duration-200",
+                      "px-3 py-2 rounded-xl border text-center text-[11px] sm:text-xs transition-all duration-200",
                       isSelected
                         ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                        : "border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200",
+                        : "border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800",
                       isFutureMonth ? "" : "",
                     ].join(" ")}
                   >
@@ -488,7 +508,6 @@ function DatePickerField({ label, value, onChange, id }) {
                 })}
               </div>
 
-              {/* Year pagination controls */}
               <div className="flex items-center justify-between mt-1 px-1">
                 <button
                   type="button"
@@ -526,13 +545,12 @@ function DatePickerField({ label, value, onChange, id }) {
                       : "opacity-40 cursor-not-allowed",
                   ].join(" ")}
                 >
-                 ▶
+                  ▶
                 </button>
               </div>
             </div>
           )}
 
-          {/* Footer: clear / today */}
           <div className="flex justify-between items-center mt-3 text-[11px] text-slate-500 dark:text-slate-400">
             <button
               type="button"
@@ -562,13 +580,15 @@ function DatePickerField({ label, value, onChange, id }) {
 /* ======================= Main Page ======================= */
 
 function AdminDashboard() {
-  const { sidebarCollapsed, sidebarBaseWidth } = useOutletContext();
   const { darkMode } = useTheme();
+  const navigate = useNavigate();
 
   const [userGrowth, setUserGrowth] = useState([]);
   const [quizParticipation, setQuizParticipation] = useState([]);
   const [coinStats, setCoinStats] = useState(null);
   const [activeUsers, setActiveUsers] = useState([]);
+
+  const [overviewStats, setOverviewStats] = useState(null); // total users, blocked, pending
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -578,6 +598,7 @@ function AdminDashboard() {
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
+  const [activeUserSearchInput, setActiveUserSearchInput] = useState("");
   const [activeUserSearch, setActiveUserSearch] = useState("");
   const [activeUserSort, setActiveUserSort] = useState("attempts");
 
@@ -590,7 +611,6 @@ function AdminDashboard() {
     []
   );
 
-  // Theme-aware chart palette
   const chartColors = useMemo(
     () => ({
       grid: darkMode ? "#1e293b" : "#e5e7eb",
@@ -609,12 +629,12 @@ function AdminDashboard() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const buildParams = () => {
+  const buildParams = useCallback(() => {
     const params = {};
     if (dateRange.from) params.from = dateRange.from;
     if (dateRange.to) params.to = dateRange.to;
     return params;
-  };
+  }, [dateRange.from, dateRange.to]);
 
   const exportToCSV = (filename, rows) => {
     if (!rows || rows.length === 0) {
@@ -660,40 +680,52 @@ function AdminDashboard() {
 
         const params = buildParams();
 
-        const [users, quizzes, coins, actives] = await Promise.all([
-          api.get("/admin/stats/users-growth", {
-            headers: adminHeaders,
-            params,
-          }),
-          api.get("/admin/stats/quiz-participation", {
-            headers: adminHeaders,
-            params,
-          }),
-          api.get("/admin/stats/coins", {
-            headers: adminHeaders,
-          }),
-          api.get("/admin/stats/active-users", {
-            headers: adminHeaders,
-            params,
-          }),
-        ]);
+  const [
+          usersGrowthRes,
+          quizzesRes,
+          coinsRes,
+          activesRes,
+          usersRes,
+          profileReqRes,
+        ] = await Promise.all([
+    api.get("/admin/stats/users-growth", { headers: adminHeaders, params }),
+    api.get("/admin/stats/quiz-participation", { headers: adminHeaders, params }),
+    api.get("/admin/stats/coins", { headers: adminHeaders }),
+    api.get("/admin/stats/active-users", { headers: adminHeaders, params }),
+    api.get("/users", { headers: adminHeaders }), // 🆕 Correct users list path
+    api.get("/admin/profile-change-requests", {
+      headers: adminHeaders,
+      params: { status: "pending" },
+    }),
+  ]);
 
-        setUserGrowth(users.data || []);
-        setQuizParticipation(quizzes.data || []);
-        setCoinStats(coins.data || null);
-        setActiveUsers(actives.data || []);
+        setUserGrowth(usersGrowthRes.data || []);
+        setQuizParticipation(quizzesRes.data || []);
+        setCoinStats(coinsRes.data || null);
+        setActiveUsers(activesRes.data || []);
+
+        const usersList = usersRes.data || [];
+        const blockedCount = usersList.filter((u) => u.isBlocked).length;
+        const pendingRequests = (profileReqRes.data || []).length;
+
+        setOverviewStats({
+          totalUsers: usersList.length,
+          blockedUsers: blockedCount,
+          pendingProfileRequests: pendingRequests,
+        });
+
         setLastUpdated(new Date());
 
         if (!isInitial) showToast("Dashboard data updated", "success");
       } catch (err) {
-        console.error("Dashboard data fetch error:", err);
+        console.error("Dashboard fetch error:", err);
         showToast("Failed to load dashboard data", "error");
       } finally {
         if (isInitial) setInitialLoading(false);
         setRefreshing(false);
       }
     },
-    [adminHeaders, dateRange.from, dateRange.to]
+    [adminHeaders, buildParams]
   );
 
   useEffect(() => {
@@ -712,6 +744,15 @@ function AdminDashboard() {
     }, 60_000);
     return () => clearInterval(id);
   }, [autoRefresh, fetchStats]);
+
+  // Debounce search input
+  useEffect(() => {
+    const id = setTimeout(
+      () => setActiveUserSearch(activeUserSearchInput),
+      300
+    );
+    return () => clearTimeout(id);
+  }, [activeUserSearchInput]);
 
   const handleQuickRange = (monthsBack) => {
     const to = new Date();
@@ -751,11 +792,26 @@ function AdminDashboard() {
     return list;
   }, [activeUsers, activeUserSearch, activeUserSort]);
 
+  const sortOptions = [
+    { value: "attempts", label: "Sort by Attempts" },
+    { value: "coins", label: "Sort by Coins" },
+  ];
+
   if (initialLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] text-slate-500 dark:text-slate-300">
-        <Loader2 className="animate-spin w-10 h-10 mb-4 text-emerald-500" />
-        <p className="text-sm">Preparing your analytics…</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-700 dark:text-slate-200">
+        <div className="w-24 h-24 mb-6 rounded-full bg-gradient-to-r from-emerald-500/40 via-emerald-300/30 to-emerald-500/40 animate-pulse flex items-center justify-center shadow-xl shadow-emerald-500/40">
+          <Loader2 className="animate-spin w-8 h-8 text-emerald-700 dark:text-emerald-300" />
+        </div>
+        <p className="text-sm mb-6 opacity-80">Preparing your analytics…</p>
+        <div className="w-full max-w-4xl grid grid-cols-1 sm:grid-cols-3 gap-4 px-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-24 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-emerald-300/10 to-emerald-500/20 animate-pulse backdrop-blur-xl shadow-[0_18px_45px_rgba(15,23,42,0.25)]"
+            />
+          ))}
+        </div>
       </div>
     );
   }
@@ -767,16 +823,15 @@ function AdminDashboard() {
     >
       <Toast toast={toast} />
 
-      {/* Full-width inside shell, no huge centre gap */}
       <main
-        className="w-full space-y-6 sm:space-y-8 md:space-y-10"
+        className="w-full space-y-6 sm:space-y-8 md:space-y-10 max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-0"
         aria-label="Admin analytics dashboard"
       >
         {/* Header + Filters */}
-        <div className="px-2 sm:px-4 md:px-6 lg:px-0 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-emerald-400 to-sky-500 flex items-center justify-center shadow-md shadow-emerald-500/40 text-lg">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-emerald-400 to-sky-500 flex items-center justify-center shadow-lg shadow-emerald-500/40 text-lg">
                 📈
               </div>
               <div>
@@ -822,19 +877,19 @@ function AdminDashboard() {
               <div className="flex flex-wrap gap-1 sm:gap-2">
                 <button
                   onClick={() => handleQuickRange(1)}
-                  className="text-[10px] sm:text-[11px] px-2.5 py-1.5 border border-emerald-500 rounded-full text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                  className="text-[10px] sm:text-[11px] px-2.5 py-1.5 border border-emerald-500/70 rounded-full text-emerald-700 dark:text-emerald-300 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md hover:bg-emerald-50/70 dark:hover:bg-emerald-500/10 transition-colors"
                 >
                   Last 30d
                 </button>
                 <button
                   onClick={() => handleQuickRange(3)}
-                  className="text-[10px] sm:text-[11px] px-2.5 py-1.5 border border-emerald-500 rounded-full text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                  className="text-[10px] sm:text-[11px] px-2.5 py-1.5 border border-emerald-500/70 rounded-full text-emerald-700 dark:text-emerald-300 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md hover:bg-emerald-50/70 dark:hover:bg-emerald-500/10 transition-colors"
                 >
                   Last 3m
                 </button>
                 <button
                   onClick={() => handleQuickRange(6)}
-                  className="text-[10px] sm:text-[11px] px-2.5 py-1.5 border border-emerald-500 rounded-full text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                  className="text-[10px] sm:text-[11px] px-2.5 py-1.5 border border-emerald-500/70 rounded-full text-emerald-700 dark:text-emerald-300 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md hover:bg-emerald-50/70 dark:hover:bg-emerald-500/10 transition-colors"
                 >
                   Last 6m
                 </button>
@@ -857,10 +912,10 @@ function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => setAutoRefresh((prev) => !prev)}
-                  className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm border transition-colors ${
+                  className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm border transition-colors backdrop-blur-md ${
                     autoRefresh
-                      ? "bg-emerald-500 text-white border-emerald-500"
-                      : "bg-white/80 dark:bg-slate-900/80 text-slate-900 dark:text-slate-100 border-slate-200/80 dark:border-slate-700"
+                      ? "bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-500/40"
+                      : "bg-white/70 dark:bg-slate-900/70 text-slate-900 dark:text-slate-100 border-slate-200/80 dark:border-slate-700"
                   }`}
                   aria-pressed={autoRefresh}
                 >
@@ -872,35 +927,135 @@ function AdminDashboard() {
           </div>
         </div>
 
+        {/* Quick Admin Shortcuts */}
+        <SectionCard
+          title="🚀 Quick Admin Shortcuts"
+          subtitle="Jump directly to the most important moderation & management screens."
+        >
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/admin/users")}
+              className="flex flex-col items-start gap-1 px-3 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500 hover:shadow-md hover:-translate-y-[1px] transition-all text-left text-xs sm:text-sm"
+            >
+              <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Users
+              </span>
+              <span className="font-semibold text-slate-900 dark:text-slate-50">
+                Manage Users
+              </span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                Block / reward / delete learners
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/admin/users?filter=blocked")}
+              className="flex flex-col items-start gap-1 px-3 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500 hover:shadow-md hover:-translate-y-[1px] transition-all text-left text-xs sm:text-sm"
+            >
+              <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Status
+              </span>
+              <span className="font-semibold text-slate-900 dark:text-slate-50">
+                Blocked Users
+              </span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                Review accounts restricted by admins
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/admin/profile-requests")}
+              className="flex flex-col items-start gap-1 px-3 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500 hover:shadow-md hover:-translate-y-[1px] transition-all text-left text-xs sm:text-sm"
+            >
+              <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Identity
+              </span>
+              <span className="font-semibold text-slate-900 dark:text-slate-50">
+                Profile Requests
+              </span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                Approve name / email corrections
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/admin/logs")}
+              className="flex flex-col items-start gap-1 px-3 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500 hover:shadow-md hover:-translate-y-[1px] transition-all text-left text-xs sm:text-sm"
+            >
+              <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Security
+              </span>
+              <span className="font-semibold text-slate-900 dark:text-slate-50">
+                Admin Logs
+              </span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                Audit all admin actions in one place
+              </span>
+            </button>
+          </div>
+        </SectionCard>
+
         {/* Summary Cards */}
-        {coinStats && (
+        {(overviewStats || coinStats) && (
           <section
             aria-label="Overall platform summary"
-            className="bg-white/95 dark:bg-slate-900/85 border border-slate-200/80 dark:border-slate-800 rounded-2xl 
-            shadow-md hover:shadow-emerald-500/10 transition-all duration-300 animate-fade">
-            <SummaryCard label="Total Coins" value={coinStats.totalCoins} />
+            className="bg-white/30 dark:bg-slate-900/30 border border-white/40 dark:border-slate-800 rounded-2xl 
+            shadow-[0_18px_45px_rgba(15,23,42,0.16)] hover:shadow-emerald-500/15 transition-all duration-300 animate-fade backdrop-blur-xl p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+          >
             <SummaryCard
-              label="Average Coins / User"
-              value={
-                coinStats.avgCoins !== undefined
+              label="Total Users"
+              value={overviewStats?.totalUsers ?? "-"}
+              accent="blue"
+              subLabel="Non-admin learners registered"
+            />
+            <SummaryCard
+              label="Blocked Users"
+              value={overviewStats?.blockedUsers ?? 0}
+              accent="red"
+              subLabel="Currently restricted accounts"
+            />
+            <SummaryCard
+              label="Pending Profile Requests"
+              value={overviewStats?.pendingProfileRequests ?? 0}
+              accent="amber"
+              subLabel="Awaiting admin review"
+            />
+            <SummaryCard
+              label="Total Coins Issued"
+              value={coinStats?.totalCoins ?? 0}
+              accent="emerald"
+              subLabel={`Avg per user: ${
+                coinStats?.avgCoins != null
                   ? coinStats.avgCoins.toFixed
                     ? coinStats.avgCoins.toFixed(1)
                     : coinStats.avgCoins
                   : "-"
-              }
-            />
-            <SummaryCard
-              label="Active Users (period)"
-              value={activeUsers.length}
+              }`}
             />
           </section>
         )}
 
-        {/* Charts Row */}
-        <div className="px-2 sm:px-4 md:px-6 lg:px-0 grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
-          {/* User Growth */}
-          <SectionCard title="👥 User Growth (Monthly)">
-            {userGrowth.length > 0 ? (
+        {/* Charts Row (User Growth & Quiz) – hidden if dataset empty */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
+          {userGrowth.length > 0 && (
+            <SectionCard
+              title="👥 User Growth (Monthly)"
+              actions={
+                userGrowth.length > 0 && (
+                  <button
+                    onClick={() => exportToCSV("user-growth.csv", userGrowth)}
+                    className="px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-md hover:-translate-y-[1px] active:scale-95 transition-all duration-200 flex items-center gap-1 text-xs sm:text-sm"
+                  >
+                    <Download className="w-3 h-3" />
+                    CSV
+                  </button>
+                )
+              }
+            >
               <div className="h-52 sm:h-60 md:h-64 lg:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={userGrowth}>
@@ -937,16 +1092,29 @@ function AdminDashboard() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-            ) : (
-              <p className="text-center text-slate-500 dark:text-slate-400 text-sm mt-4">
-                No user data for the selected range.
-              </p>
-            )}
-          </SectionCard>
+            </SectionCard>
+          )}
 
-          {/* Quiz Participation */}
-          <SectionCard title="🧩 Quiz Participation (Monthly)">
-            {quizParticipation.length > 0 ? (
+          {quizParticipation.length > 0 && (
+            <SectionCard
+              title="🧩 Quiz Participation (Monthly)"
+              actions={
+                quizParticipation.length > 0 && (
+                  <button
+                    onClick={() =>
+                      exportToCSV(
+                        "quiz-participation.csv",
+                        quizParticipation
+                      )
+                    }
+                    className="px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-md hover:-translate-y-[1px] active:scale-95 transition-all duration-200 flex items-center gap-1 text-xs sm:text-sm"
+                  >
+                    <Download className="w-3 h-3" />
+                    CSV
+                  </button>
+                )
+              }
+            >
               <div className="h-52 sm:h-60 md:h-64 lg:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={quizParticipation}>
@@ -980,168 +1148,163 @@ function AdminDashboard() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            ) : (
-              <p className="text-center text-slate-500 dark:text-slate-400 text-sm mt-4">
-                No quiz participation data for the selected range.
-              </p>
-            )}
-          </SectionCard>
+            </SectionCard>
+          )}
         </div>
 
         {/* Coin Distribution + Active Users */}
-        <div className="px-2 sm:px-4 md:px-6 lg:px-0 grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-          {/* Coin Distribution Pie */}
-          {coinStats && (
-            <SectionCard title="💰 Top 10 Users by Coins">
-              {coinStats.topUsers?.length > 0 ? (
-                <div className="flex flex-col md:flex-row gap-4 items-center">
-                  <div className="w-full md:w-2/3 h-52 sm:h-60 md:h-64 lg:h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={coinStats.topUsers}
-                          dataKey="coins"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius="75%"
-                          innerRadius="45%"
-                          labelLine
-                          // PC-Outside: simple percent label near arc, but short
-                          label={({ percent }) =>
-                            `${Math.round(percent * 100)}%`
-                          }
-                        >
-                          {coinStats.topUsers.map((_, i) => (
-                            <Cell
-                              key={`${coinStats.topUsers[i]._id || coinStats.topUsers[i].email || coinStats.topUsers[i].name || "pie"}-${i}`}
-                              fill={chartColors.pie[i % BASE_COLORS.length]}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{
-                            fontSize: 11,
-                            backgroundColor: chartColors.tooltipBg,
-                            borderRadius: "0.75rem",
-                            border: `1px solid ${chartColors.tooltipBorder}`,
-                          }}
-                          labelStyle={{
-                            color: darkMode ? "#e5e7eb" : "#0f172a",
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {/* Legend with wrapped names (no internal scrollbars) */}
-                  <div className="w-full md:w-1/3 space-y-2 text-[11px] sm:text-xs">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-slate-700 dark:text-slate-200 font-medium">
-                        Users
-                      </span>
-                      <button
-                        onClick={() =>
-                          exportToCSV(
-                            "top-coin-users.csv",
-                            (coinStats.topUsers || []).map((u, idx) => ({
-                              rank: idx + 1,
-                              name: u.name,
-                              coins: u.coins,
-                            }))
-                          )
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+          {/* Coin Distribution Pie – hide completely if no top users */}
+          {coinStats && coinStats.topUsers?.length > 0 && (
+            <SectionCard
+              title="💰 Top 10 Users by Coins"
+              actions={
+                coinStats.topUsers?.length > 0 && (
+                  <button
+                    onClick={() =>
+                      exportToCSV(
+                        "top-coins-users.csv",
+                        coinStats.topUsers.map((u, idx) => ({
+                          rank: idx + 1,
+                          name: u.name,
+                          email: u.email,
+                          coins: u.coins,
+                        }))
+                      )
+                    }
+                    className="px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-md hover:-translate-y-[1px] active:scale-95 transition-all duration-200 flex items-center gap-1 text-xs sm:text-sm"
+                  >
+                    <Download className="w-3 h-3" />
+                    CSV
+                  </button>
+                )
+              }
+            >
+              <div className="flex flex-col md:flex-row gap-4 items-center">
+                <div className="w-full md:w-2/3 h-52 sm:h-60 md:h-64 lg:h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={coinStats.topUsers}
+                        dataKey="coins"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius="75%"
+                        innerRadius="45%"
+                        labelLine
+                        label={({ percent }) =>
+                          `${Math.round(percent * 100)}%`
                         }
-                        className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-100 bg-white/70 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800"
                       >
-                        <Download className="w-3 h-3" />
-                        CSV
-                      </button>
-                    </div>
-                    <ul className="space-y-1">
-                      {coinStats.topUsers.map((u, i) => {
-                        const total = coinStats.topUsers.reduce(
-                          (acc, t) => acc + (t.coins || 0),
-                          0
-                        );
-                        const pct =
-                          total > 0
-                            ? (((u.coins || 0) / total) * 100).toFixed(0)
-                            : 0;
-                        return (
-                          <li
-                            key={`${coinStats.topUsers[i]._id || coinStats.topUsers[i].email || coinStats.topUsers[i].name || "pie"}-${i}`}
-                            className="flex items-center justify-between gap-2"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="w-2 h-2 rounded-full"
-                                style={{
-                                  backgroundColor:
-                                    chartColors.pie[i % BASE_COLORS.length],
-                                }}
-                              />
-                              <span
-                                className="break-words max-w-[160px]"
-                                title={u.name}
-                              >
-                                {u.name}
-                              </span>
-                            </div>
-                            <span className="text-slate-700 dark:text-slate-200 whitespace-nowrap">
-                              {u.coins}{" "}
-                              <span className="text-slate-500 dark:text-slate-400 text-[10px]">
-                                ({pct}%)
-                              </span>
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
+                        {coinStats.topUsers.map((_, i) => (
+                          <Cell
+                            key={`coin-user-${i}`}
+                            fill={chartColors.pie[i % BASE_COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          fontSize: 11,
+                          backgroundColor: chartColors.tooltipBg,
+                          borderRadius: "0.75rem",
+                          border: `1px solid ${chartColors.tooltipBorder}`,
+                        }}
+                        labelStyle={{
+                          color: darkMode ? "#e5e7eb" : "#0f172a",
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-              ) : (
-                <p className="text-center text-slate-500 dark:text-slate-400 mt-2 text-sm">
-                  No coin distribution data available.
-                </p>
-              )}
+
+                <div className="w-full md:w-1/3 space-y-2 text-[11px] sm:text-xs">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-slate-700 dark:text-slate-200 font-medium">
+                      Users
+                    </span>
+                  </div>
+                  <ul className="space-y-1">
+                    {coinStats.topUsers.map((u, i) => {
+                      const total = coinStats.topUsers.reduce(
+                        (acc, t) => acc + (t.coins || 0),
+                        0
+                      );
+                      const pct =
+                        total > 0
+                          ? (((u.coins || 0) / total) * 100).toFixed(0)
+                          : 0;
+                      return (
+                        <li
+                          key={`coin-legend-${i}`}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="w-2 h-2 rounded-full"
+                              style={{
+                                backgroundColor:
+                                  chartColors.pie[i % BASE_COLORS.length],
+                              }}
+                            />
+                            <span
+                              className="break-words max-w-[160px]"
+                              title={u.name}
+                            >
+                              {u.name}
+                            </span>
+                          </div>
+                          <span className="text-slate-700 dark:text-slate-200 whitespace-nowrap">
+                            {u.coins}{" "}
+                            <span className="text-slate-500 dark:text-slate-400 text-[10px]">
+                              ({pct}%)
+                            </span>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </div>
             </SectionCard>
           )}
 
-          {/* ======================= Most Active Users ======================= */}
+          {/* Most Active Users – keep visible even if empty (table) */}
           <SectionCard
             title="🔥 Most Active Users"
             subtitle={`Ranked by ${
               activeUserSort === "attempts" ? "quiz attempts" : "coins earned"
             }`}
             actions={
-              <button
-                onClick={() =>
-                  exportToCSV(
-                    "active-users.csv",
-                    filteredActiveUsers.map((u, idx) => ({
-                      rank: idx + 1,
-                      name: u.name,
-                      email: u.email,
-                      attempts: u.attempts,
-                      coins: u.coins,
-                    }))
-                  )
-                }
-                className= "px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-md hover:-translate-y-[1px] active:scale-95 transition-all duration-200">
-                <Download className="w-3 h-3" />
-                Export CSV
-              </button>
+              filteredActiveUsers.length > 0 && (
+                <button
+                  onClick={() =>
+                    exportToCSV(
+                      "active-users.csv",
+                      filteredActiveUsers.map((u, idx) => ({
+                        rank: idx + 1,
+                        name: u.name,
+                        email: u.email,
+                        attempts: u.attempts,
+                        coins: u.coins,
+                      }))
+                    )
+                  }
+                  className="px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-md hover:-translate-y-[1px] active:scale-95 transition-all duration-200 flex items-center gap-1 text-xs sm:text-sm"
+                >
+                  <Download className="w-3 h-3" />
+                  CSV
+                </button>
+              )
             }
           >
-            {/* Search + Sort Controls */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3 w-full">
-              
-              {/* Search Input */}
               <input
                 type="text"
                 placeholder="Search by name or email"
-                value={activeUserSearch}
-                onChange={(e) => setActiveUserSearch(e.target.value)}
+                value={activeUserSearchInput}
+                onChange={(e) => setActiveUserSearchInput(e.target.value)}
                 className="w-full md:flex-1 min-w-[160px]
                   text-[11px] sm:text-xs md:text-sm
                   px-3 py-2 rounded-xl
@@ -1149,45 +1312,102 @@ function AdminDashboard() {
                   bg-white/80 dark:bg-slate-900/80
                   text-slate-900 dark:text-slate-100
                   focus:outline-none focus:ring-2 focus:ring-emerald-500
-                  transition-shadow"
+                  transition-shadow backdrop-blur-md"
               />
 
-              {/* Sort Select */}
-              <select
-                value={activeUserSort}
-                onChange={(e) => setActiveUserSort(e.target.value)}
-                className="w-full md:w-auto min-w-[150px]
-                  text-[11px] sm:text-xs md:text-sm
-                  px-3 py-2 rounded-xl
-                  border border-slate-200/80 dark:border-slate-700
-                  bg-white/80 dark:bg-slate-900/80
-                  text-slate-900 dark:text-slate-100
-                  focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="attempts">Sort by Attempts</option>
-                <option value="coins">Sort by Coins</option>
-              </select>
+              <Listbox value={activeUserSort} onChange={setActiveUserSort}>
+                <div className="relative">
+                  <Listbox.Button
+                    className="
+                      w-full md:w-auto min-w-[160px]
+                      px-3 py-2 text-[11px] sm:text-xs md:text-sm font-semibold
+                      rounded-xl
+                      bg-white/95 dark:bg-slate-900/85
+                      border border-emerald-500/30 dark:border-emerald-500/30
+                      text-slate-900 dark:text-slate-100
+                      shadow-sm hover:shadow-md transition-all duration-200
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500
+                      flex items-center justify-between backdrop-blur-md
+                    "
+                  >
+                    {sortOptions.find((x) => x.value === activeUserSort)
+                      ?.label}
+                    <ChevronDown className="w-4 h-4 ml-2 text-emerald-500" />
+                  </Listbox.Button>
+
+                  <Transition
+                    as={Fragment}
+                    enter="transition ease-out duration-150"
+                    enterFrom="opacity-0 scale-95"
+                    enterTo="opacity-100 scale-100"
+                    leave="transition ease-in duration-100"
+                    leaveFrom="opacity-100 scale-100"
+                    leaveTo="opacity-0 scale-95"
+                  >
+                    <Listbox.Options
+                      className="
+                        absolute z-20 mt-2
+                        w-full md:w-auto min-w-[160px]
+                        bg-white/95 dark:bg-slate-900/95
+                        border border-slate-700/40
+                        rounded-xl shadow-2xl overflow-hidden backdrop-blur-2xl
+                      "
+                    >
+                      {sortOptions.map((item) => (
+                        <Listbox.Option
+                          key={item.value}
+                          value={item.value}
+                          className={({ active }) =>
+                            `
+                              cursor-pointer select-none px-3 py-2
+                              text-[11px] sm:text-xs md:text-sm font-medium
+                              flex items-center justify-between
+                              ${
+                                active
+                                  ? "bg-emerald-600 text-white"
+                                  : "text-slate-900 dark:text-slate-100"
+                              }
+                            `
+                          }
+                        >
+                          {({ selected }) => (
+                            <>
+                              {item.label}
+                              {selected && (
+                                <Check className="w-4 h-4 text-white ml-2" />
+                              )}
+                            </>
+                          )}
+                        </Listbox.Option>
+                      ))}
+                    </Listbox.Options>
+                  </Transition>
+                </div>
+              </Listbox>
             </div>
 
-            {/* Data Table */}
             {filteredActiveUsers.length > 0 ? (
               <div className="overflow-x-auto px-1 sm:px-2 max-h-[300px] overflow-y-auto rounded-lg scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent">
                 <table className="min-w-full text-[11px] sm:text-xs md:text-sm border-collapse">
-                  <thead className="sticky top-0 bg-white/70 dark:bg-slate-900/70 backdrop-blur z-10">
-                    <tr className="border-b border-slate-100 dark:border-slate-800 
+                  <thead className="sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur z-10">
+                    <tr
+                      className="border-b border-slate-100 dark:border-slate-800 
                       transition-all duration-200 hover:bg-emerald-50/60 dark:hover:bg-slate-800/60 
                       hover:-translate-y-[1px]"
                     >
                       <th className="py-2 px-3 text-left">#</th>
                       <th className="py-2 px-3 text-left">Name</th>
-                      <th className="py-2 px-3 text-left hidden md:table-cell">Email</th>
+                      <th className="py-2 px-3 text-left hidden md:table-cell">
+                        Email
+                      </th>
                       <th className="py-2 px-3 text-center">Attempts</th>
                       <th className="py-2 px-3 text-center">Coins</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredActiveUsers.map((u, i) => (
-                      <tr key={`${u._id || u.email || u.name || "active"}-${i}`}
+                      <tr
+                        key={`${u._id || u.email || u.name || "active"}-${i}`}
                         className="border-b border-slate-100 dark:border-slate-800
                         hover:bg-emerald-50/60 dark:hover:bg-slate-800/60
                         transition-colors"
@@ -1206,8 +1426,12 @@ function AdminDashboard() {
                             {u.email}
                           </span>
                         </td>
-                        <td className="py-2 px-3 text-center">{u.attempts ?? 0}</td>
-                        <td className="py-2 px-3 text-center">{u.coins ?? 0}</td>
+                        <td className="py-2 px-3 text-center">
+                          {u.attempts ?? 0}
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          {u.coins ?? 0}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
