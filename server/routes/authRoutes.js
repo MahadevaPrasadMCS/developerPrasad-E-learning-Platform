@@ -73,10 +73,13 @@ router.post("/login", async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Blocked check
+        // Blocked check
     if (user.isBlocked) {
-      console.log("🚫 Blocked user tried login:", normalizedEmail);
-      return res.status(403).json({ message: "Account blocked. Contact admin." });
+      return res.status(403).json({
+        message: "Your account has been blocked by admin.",
+        reason: user.blockReason,
+        blockedAt: user.blockTimestamp,
+      });
     }
 
     // Compare password
@@ -85,6 +88,14 @@ router.post("/login", async (req, res) => {
       console.log("❌ Invalid password for:", normalizedEmail);
       return res.status(400).json({ message: "Invalid credentials" });
     }
+
+        // Create token
+    const token = jwt.sign(
+      { id: user._id, role: user.role, sessionVersion: user.sessionVersion },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
 
     // JWT Secret check
     if (!process.env.JWT_SECRET) {
@@ -97,14 +108,6 @@ router.post("/login", async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
-    // Create token
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
-    console.log(`✅ Login successful for ${user.email}`);
 
     return res.status(200).json({
       message: "Login successful",
