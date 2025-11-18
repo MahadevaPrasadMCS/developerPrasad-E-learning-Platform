@@ -50,6 +50,8 @@ function AdminLayout() {
       items: [
         { label: "Manage Users", to: "/admin/users", icon: Users },
         { label: "Manage Admins", to: "/admin/admin-users", icon: Users },
+        { label: "Admin logs", to: "/admin/ogs", icon: Users },
+        { label: "Profile Update Requests", to: "/admin/profile-requests", icon: Users },
       ],
     },
     {
