@@ -1,13 +1,13 @@
 import fs from "fs";
 import jwt from "jsonwebtoken";
 import path from "path";
-import upload from "../middleware/uploadMiddleware.js";
+import upload from "../middlewares/uploadMiddleware.js";
 import Purchase from "../models/Purchase.js";
 import express from "express";
 import Resource from "../models/Resource.js";
 import User from "../models/User.js";
-import authMiddleware from "../middleware/authMiddleware.js";
-import adminMiddleware from "../middleware/adminMiddleware.js";
+import authMiddleware from "../middlewares/authMiddleware.js";
+import adminMiddleware from "../middlewares/adminMiddleware.js";
 
 const router = express.Router();
 

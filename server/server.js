@@ -1,7 +1,6 @@
 // server.js
 import express from "express";
 import cors from "cors";
-import mongoose from "mongoose";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
@@ -9,14 +8,15 @@ import compression from "compression";
 import cron from "node-cron";
 import Quiz from "./models/Quiz.js";
 import { startQuizExpiryJob } from "./cron/quizExpiryJob.js";
+import { connectDB } from "./config/db.js"; // Correct DB import
 
 dotenv.config();
-const app = express();
 
+const app = express();
 app.set("trust proxy", 1);
 
 // ==================================================
-// CORS CONFIGURATION
+// CORS CONFIG
 // ==================================================
 const allowedOrigins = [
   "http://localhost:3000",
@@ -45,6 +45,7 @@ app.use(
 app.use(express.json());
 app.use(compression());
 
+// Request Logging
 app.use((req, res, next) => {
   console.log(
     `[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - IP:${req.ip}`
@@ -52,39 +53,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// Ensure uploads directory exists
+// Ensure uploads folder exists
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 // ==================================================
-// MongoDB Connection
+// MongoDB Initialization
 // ==================================================
-mongoose.set("strictQuery", true);
-
-async function connectDB() {
-  try {
-    console.log("⏳ Connecting to MongoDB...");
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 10000,
-    });
-    console.log(`🟢 MongoDB Connected: ${conn.connection.host}`);
-  } catch (err) {
-    console.error("❌ MongoDB Error:", err.message);
-    setTimeout(connectDB, 5000);
-  }
-}
 await connectDB();
 
 // ==================================================
 // Route Imports
 // ==================================================
 import authRoutes from "./routes/authRoutes.js";
-import adminUserRoutes from "./routes/adminUserRoutes.js"; // Admin Management
-import adminControlRoutes from "./routes/adminControlRoutes.js"; // Permissions / block etc
-import adminStatsRoutes from "./routes/adminStatsRoutes.js"; // Analytics
+import adminUserRoutes from "./routes/adminUserRoutes.js";
+import adminControlRoutes from "./routes/adminControlRoutes.js";
+import adminStatsRoutes from "./routes/adminStatsRoutes.js";
 import quizAdminRoutes from "./routes/quizAdminRoutes.js";
 import quizUserRoutes from "./routes/quizUserRoutes.js";
 import walletRoutes from "./routes/walletRoutes.js";
@@ -99,67 +83,70 @@ import youtubeRoutes from "./routes/youtubeRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
 
+// 🆕 CEO + Logs Routes
+import roleRoutes from "./routes/roleRoutes.js";
+import logRoutes from "./routes/logRoutes.js";
+
 // ==================================================
-// Apply Routes (Best Order)
+// Apply Routes in Clean Order
 // ==================================================
 
-// 🔐 Auth
+// Auth
 app.use("/api/auth", authRoutes);
 
-// 🛠 Admin Routes (correct order to avoid path conflicts)
-app.use("/api/admin", adminUserRoutes);         // Core admin: users, logs, profile-change-requests
-app.use("/api/admin/control", adminControlRoutes); // block/unblock, allow/deny edits
-app.use("/api/admin/stats", adminStatsRoutes);  // Analytics & dashboard stats
-
-// 🧩 User functionality
+// User Features
 app.use("/api/users", userRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
-
-// 🧠 Quiz system
-app.use("/api/quiz/admin", quizAdminRoutes);
 app.use("/api/quiz", quizUserRoutes);
-
-// 🎓 Tutorials / YouTube
 app.use("/api/tutorials", tutorialRoutes);
-app.use("/api/youtube", youtubeRoutes); // renamed cleanly for future usage
-
-// 🛒 Store + Rewards
-app.use("/api/rewards", rewardRoutes);
+app.use("/api/youtube", youtubeRoutes);
 app.use("/api/store", storeRoutes);
-
-// 📢 Announcements + Community
-app.use("/api/announcements", announcementRoutes);
-app.use("/api/community", communityRoutes);
-
-// 📩 Contact
 app.use("/api/contact", contactRoutes);
 
-// ==================================================
-// Root Endpoint
-// ==================================================
+// Community
+app.use("/api/community", communityRoutes);
+
+// Announcements
+app.use("/api/announcements", announcementRoutes);
+
+// CEO Governance
+app.use("/api/ceo/roles", roleRoutes);
+app.use("/api/logs", logRoutes);
+
+// Admin Panel
+app.use("/api/admin", adminUserRoutes);
+app.use("/api/admin/control", adminControlRoutes);
+app.use("/api/admin/stats", adminStatsRoutes);
+
+// Quiz Admin
+app.use("/api/quiz/admin", quizAdminRoutes);
+
+// Rewards + Resources
+app.use("/api/rewards", rewardRoutes);
+app.use("/api/resources", resourceRoutes);
+
+// Root
 app.get("/", (req, res) => {
   res.json({ msg: "Backend connected successfully 🚀" });
 });
 
 // ==================================================
-// Quiz Auto-Unpublish Cron Job
+// Cron Job: Auto Unpublish Quiz
 // ==================================================
-mongoose.connection.once("open", () => {
-  cron.schedule("* * * * *", async () => {
-    try {
-      const now = new Date();
-      const expired = await Quiz.updateMany(
-        { status: "published", endTime: { $lt: now } },
-        { status: "draft", startTime: null, endTime: null }
-      );
-      if (expired.modifiedCount > 0) {
-        console.log(`⛔ Auto-unpublished: ${expired.modifiedCount}`);
-      }
-    } catch (err) {
-      console.error("Auto-unpublish error:", err.message);
+cron.schedule("* * * * *", async () => {
+  try {
+    const now = new Date();
+    const expired = await Quiz.updateMany(
+      { status: "published", endTime: { $lt: now } },
+      { status: "draft", startTime: null, endTime: null }
+    );
+    if (expired.modifiedCount > 0) {
+      console.log(`⛔ Auto-unpublished: ${expired.modifiedCount}`);
     }
-  });
+  } catch (err) {
+    console.error("Auto-unpublish error:", err.message);
+  }
 });
 
 startQuizExpiryJob();

@@ -25,7 +25,18 @@ function Login() {
       login({ user, token });
 
       // 🎯 Redirect based on role
-      navigate(user.role === "admin" ? "/admin/stats" : "/dashboard");
+      if (user.role === "ceo") {
+        navigate("/ceo");
+      } else if (user.role === "admin") {
+        navigate("/admin");
+      }else if (user.role === "instructor") {
+        navigate("/instructor");
+      } else if (user.role === "moderator") {
+        navigate("/moderator");
+      } 
+      else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       console.error("Login failed:", err);
       setError(err.response?.data?.message || "Invalid email or password");

@@ -3,7 +3,7 @@ import Quiz from "../models/Quiz.js";
 import QuizAttempt from "../models/quizAttempt.js";
 import Wallet from "../models/Wallet.js";
 import User from "../models/User.js";
-import authMiddleware from "../middleware/authMiddleware.js";
+import authMiddleware from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 

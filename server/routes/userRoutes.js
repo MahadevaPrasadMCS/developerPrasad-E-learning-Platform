@@ -3,8 +3,8 @@ import User from "../models/User.js";
 import Wallet from "../models/Wallet.js";
 import AdminLog from "../models/AdminLog.js";
 import ProfileChangeRequest from "../models/ProfileChangeRequest.js";
-import adminMiddleware from "../middleware/adminMiddleware.js";
-import authMiddleware from "../middleware/authMiddleware.js";
+import adminMiddleware from "../middlewares/adminMiddleware.js";
+import authMiddleware from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 

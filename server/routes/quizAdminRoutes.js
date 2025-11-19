@@ -1,8 +1,8 @@
 import express from "express";
 import Quiz from "../models/Quiz.js";
 import QuizAttempt from "../models/quizAttempt.js";
-import authMiddleware from "../middleware/authMiddleware.js";
-import adminMiddleware from "../middleware/adminMiddleware.js";
+import authMiddleware from "../middlewares/authMiddleware.js";
+import adminMiddleware from "../middlewares/adminMiddleware.js";
 
 const router = express.Router();
 

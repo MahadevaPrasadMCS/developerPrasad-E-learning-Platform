@@ -1,5 +1,5 @@
 import express from "express";
-import authMiddleware from "../middleware/authMiddleware.js";
+import authMiddleware from "../middlewares/authMiddleware.js";
 import Wallet from "../models/Wallet.js";
 import User from "../models/User.js";
 

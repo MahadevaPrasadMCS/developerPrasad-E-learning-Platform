@@ -32,7 +32,7 @@ export default async function adminMiddleware(req, res, next) {
 
     console.log("🧭 Admin check → user:", req.user.email, "| role:", req.user.role);
 
-    if (req.user.role !== "admin") {
+    if (req.user.role !== "admin" && req.user.role !== "ceo") {
       return res.status(403).json({ message: "Access denied. Admins only." });
     }
 
