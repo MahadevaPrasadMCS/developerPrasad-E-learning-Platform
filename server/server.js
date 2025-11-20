@@ -65,22 +65,6 @@ await connectDB();
 // Route Imports
 // ==================================================
 import authRoutes from "./routes/authRoutes.js";
-import adminUserRoutes from "./routes/adminUserRoutes.js";
-import adminControlRoutes from "./routes/adminControlRoutes.js";
-import adminStatsRoutes from "./routes/adminStatsRoutes.js";
-import quizAdminRoutes from "./routes/quizAdminRoutes.js";
-import quizUserRoutes from "./routes/quizUserRoutes.js";
-import walletRoutes from "./routes/walletRoutes.js";
-import leaderboardRoutes from "./routes/leaderboardRoutes.js";
-import communityRoutes from "./routes/communityRoutes.js";
-import announcementRoutes from "./routes/announcementRoutes.js";
-import resourceRoutes from "./routes/resourceRoutes.js";
-import rewardRoutes from "./routes/rewardRoutes.js";
-import storeRoutes from "./routes/storeRoutes.js";
-import tutorialRoutes from "./routes/tutorialRoutes.js";
-import youtubeRoutes from "./routes/youtubeRoutes.js";
-import userRoutes from "./routes/userRoutes.js";
-import contactRoutes from "./routes/contactRoutes.js";
 
 // CEO + Logs Routes
 import roleRoutes from "./routes/roleRoutes.js";
@@ -95,36 +79,6 @@ app.use("/api/auth", authRoutes);
 
 // Everything below this line requires valid JWT
 app.use(authMiddleware);
-
-// User Features (protected)
-app.use("/api/users", userRoutes);
-app.use("/api/wallet", walletRoutes);
-app.use("/api/leaderboard", leaderboardRoutes);
-app.use("/api/quiz", quizUserRoutes);
-app.use("/api/tutorials", tutorialRoutes);
-app.use("/api/youtube", youtubeRoutes);
-app.use("/api/store", storeRoutes);
-app.use("/api/contact", contactRoutes);
-
-// Community & Announcements (protected)
-app.use("/api/community", communityRoutes);
-app.use("/api/announcements", announcementRoutes);
-
-// CEO Governance (protected, further restricted in those route files with RBAC)
-app.use("/api/ceo/roles", roleRoutes);
-app.use("/api/logs", logRoutes);
-
-// Admin Panel (protected, RBAC inside routes)
-app.use("/api/admin", adminUserRoutes);
-app.use("/api/admin/control", adminControlRoutes);
-app.use("/api/admin/stats", adminStatsRoutes);
-
-// Quiz Admin
-app.use("/api/quiz/admin", quizAdminRoutes);
-
-// Rewards + Resources
-app.use("/api/rewards", rewardRoutes);
-app.use("/api/resources", resourceRoutes);
 
 // Root
 app.get("/", (req, res) => {
