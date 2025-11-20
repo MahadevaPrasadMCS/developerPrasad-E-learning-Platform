@@ -1,6 +1,6 @@
 import express from "express";
-import protect from "../middlewares/authMiddleware.js";
-import { ceoOnly } from "../middlewares/ceoOnly.js";
+import protect from "../middleware/authMiddleware.js";
+import { ceoOnly } from "../middleware/ceoOnly.js";
 import { updateRole } from "../controllers/roleController.js";
 
 const router = express.Router();

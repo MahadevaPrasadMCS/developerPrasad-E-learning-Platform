@@ -1,4 +1,4 @@
-// server.js
+// server/server.js
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -8,7 +8,8 @@ import compression from "compression";
 import cron from "node-cron";
 import Quiz from "./models/Quiz.js";
 import { startQuizExpiryJob } from "./cron/quizExpiryJob.js";
-import { connectDB } from "./config/db.js"; // Correct DB import
+import { connectDB } from "./config/db.js";
+import authMiddleware from "./middleware/authMiddleware.js";
 
 dotenv.config();
 
@@ -21,8 +22,6 @@ app.set("trust proxy", 1);
 const allowedOrigins = [
   "http://localhost:3000",
   "https://youlearnhub-dp.vercel.app",
-  "https://youlearnhub.vercel.app",
-  "https://youlearnhub.com",
 ];
 
 app.use(
@@ -83,7 +82,7 @@ import youtubeRoutes from "./routes/youtubeRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
 
-// 🆕 CEO + Logs Routes
+// CEO + Logs Routes
 import roleRoutes from "./routes/roleRoutes.js";
 import logRoutes from "./routes/logRoutes.js";
 
@@ -91,10 +90,13 @@ import logRoutes from "./routes/logRoutes.js";
 // Apply Routes in Clean Order
 // ==================================================
 
-// Auth
+// Public Auth Routes (no token required)
 app.use("/api/auth", authRoutes);
 
-// User Features
+// Everything below this line requires valid JWT
+app.use(authMiddleware);
+
+// User Features (protected)
 app.use("/api/users", userRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
@@ -104,17 +106,15 @@ app.use("/api/youtube", youtubeRoutes);
 app.use("/api/store", storeRoutes);
 app.use("/api/contact", contactRoutes);
 
-// Community
+// Community & Announcements (protected)
 app.use("/api/community", communityRoutes);
-
-// Announcements
 app.use("/api/announcements", announcementRoutes);
 
-// CEO Governance
+// CEO Governance (protected, further restricted in those route files with RBAC)
 app.use("/api/ceo/roles", roleRoutes);
 app.use("/api/logs", logRoutes);
 
-// Admin Panel
+// Admin Panel (protected, RBAC inside routes)
 app.use("/api/admin", adminUserRoutes);
 app.use("/api/admin/control", adminControlRoutes);
 app.use("/api/admin/stats", adminStatsRoutes);
