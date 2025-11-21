@@ -6,6 +6,7 @@ import path from "path";
 import fs from "fs";
 import compression from "compression";
 import cron from "node-cron";
+
 import Quiz from "./models/Quiz.js";
 import { startQuizExpiryJob } from "./cron/quizExpiryJob.js";
 import { connectDB } from "./config/db.js";
@@ -17,7 +18,7 @@ const app = express();
 app.set("trust proxy", 1);
 
 // ==================================================
-// CORS CONFIG
+// CORS
 // ==================================================
 const allowedOrigins = [
   "http://localhost:3000",
@@ -33,13 +34,11 @@ app.use(
       return callback(new Error("CORS: Unauthorized origin"));
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Auth-Role"],
   })
 );
 
 // ==================================================
-// Middleware
+// Core Middleware
 // ==================================================
 app.use(express.json());
 app.use(compression());
@@ -57,36 +56,56 @@ const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 // ==================================================
-// MongoDB Initialization
+// MongoDB Connect
 // ==================================================
 await connectDB();
 
 // ==================================================
-// Route Imports
+// Route Imports — Organized by Layer
 // ==================================================
+
+// Public Auth Routes
 import authRoutes from "./routes/authRoutes.js";
 
-// CEO + Logs Routes
+// CEO Governance Routes
 import roleRoutes from "./routes/roleRoutes.js";
+import ceoStatsRoutes from "./routes/ceoStatsRoutes.js";
+import ceoUserRoutes from "./routes/ceoUserRoutes.js";
+
+// Logs Route
 import logRoutes from "./routes/logRoutes.js";
 
+// Promotion System Routes
+import promotionRoutes from "./routes/promotionRoutes.js";
+
 // ==================================================
-// Apply Routes in Clean Order
+// Route Application
 // ==================================================
 
-// Public Auth Routes (no token required)
+// Public
 app.use("/api/auth", authRoutes);
 
-// Everything below this line requires valid JWT
+// ⛔ Everything below requires valid JWT
 app.use(authMiddleware);
 
-// Root
+// CEO role-management + analytics
+app.use("/api/ceo/roles", roleRoutes);
+app.use("/api/ceo/stats", ceoStatsRoutes);
+app.use("/api/ceo/users", ceoUserRoutes);
+
+// Logs for CEO/Admin
+app.use("/api/logs", logRoutes);
+
+// Promotion Workflow
+app.use("/api/promotions", promotionRoutes);
+
+// Test root
 app.get("/", (req, res) => {
-  res.json({ msg: "Backend connected successfully 🚀" });
+  res.json({ msg: "Backend running successfully 🚀" });
 });
 
 // ==================================================
-// Cron Job: Auto Unpublish Quiz
+// Cron: Auto unpublish quizzes
 // ==================================================
 cron.schedule("* * * * *", async () => {
   try {
@@ -95,8 +114,9 @@ cron.schedule("* * * * *", async () => {
       { status: "published", endTime: { $lt: now } },
       { status: "draft", startTime: null, endTime: null }
     );
+
     if (expired.modifiedCount > 0) {
-      console.log(`⛔ Auto-unpublished: ${expired.modifiedCount}`);
+      console.log(`⛔ Auto-unpublished quizzes: ${expired.modifiedCount}`);
     }
   } catch (err) {
     console.error("Auto-unpublish error:", err.message);
@@ -106,9 +126,9 @@ cron.schedule("* * * * *", async () => {
 startQuizExpiryJob();
 
 // ==================================================
-// Start Server
+// Server Start
 // ==================================================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
+  console.log(`🚀 Server live: http://localhost:${PORT}`)
 );
