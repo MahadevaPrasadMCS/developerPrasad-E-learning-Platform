@@ -1,9 +1,43 @@
+// server/utils/logAction.js
 import Log from "../models/Log.js";
 
-export const logAction = async ({ action, actor, target, details, ip }) => {
+/**
+ * logAction({
+ *   action: "PROMOTION_REQUEST",
+ *   category: "PROMOTION",
+ *   actor: userId,
+ *   target: targetUserId,
+ *   description: "User requested promotion to instructor",
+ *   details: { requestedRole: "instructor" },
+ *   ip: req.ip,
+ *   userAgent: req.headers["user-agent"],
+ * })
+ */
+export async function logAction({
+  action,
+  category = "SYSTEM",
+  actor,
+  target = null,
+  description = "",
+  details = {},
+  ip,
+  userAgent,
+}) {
   try {
-    await Log.create({ action, actor, target, details, ip });
+    if (!action || !actor) return;
+
+    await Log.create({
+      action,
+      category,
+      actor,
+      target,
+      description,
+      details,
+      ip,
+      userAgent,
+    });
   } catch (err) {
-    console.error("Log create failed:", err.message);
+    // don’t crash main flow because logging failed
+    console.error("Log creation failed:", err.message);
   }
-};
+}
