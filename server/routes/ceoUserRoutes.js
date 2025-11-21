@@ -8,10 +8,12 @@ const router = express.Router();
 
 /**
  * GET /api/ceo/users
- * Query params:
- *  - search: name/email substring
- *  - role: filter by role (ceo/admin/instructor/moderator/student or "all")
- *  - page, limit: pagination
+ * CEO — List Users with Filters + Pagination
+ * Query Params:
+ *  - search: name/email match
+ *  - role: filter by role
+ *  - page: pagination (default: 1)
+ *  - limit: number of users per page (default: 10)
  */
 router.get("/", requireRoles(ROLES.CEO), async (req, res) => {
   try {
@@ -23,10 +25,11 @@ router.get("/", requireRoles(ROLES.CEO), async (req, res) => {
       filter.role = role;
     }
 
-    if (search) {
+    if (search?.trim()) {
+      const q = search.trim();
       filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
+        { name: { $regex: q, $options: "i" } },
+        { email: { $regex: q, $options: "i" } },
       ];
     }
 
@@ -35,14 +38,15 @@ router.get("/", requireRoles(ROLES.CEO), async (req, res) => {
 
     const [users, total] = await Promise.all([
       User.find(filter)
-        .select("name email role isBlocked createdAt")
+        .select("name email role coins isBlocked createdAt")
         .sort({ createdAt: -1 })
         .skip((pageNum - 1) * limitNum)
         .limit(limitNum),
+
       User.countDocuments(filter),
     ]);
 
-    res.json({
+    return res.json({
       users,
       pagination: {
         total,
@@ -51,39 +55,6 @@ router.get("/", requireRoles(ROLES.CEO), async (req, res) => {
         pages: Math.ceil(total / limitNum),
       },
     });
-  } catch (err) {
-    console.error("CEO users fetch error:", err);
-    res.status(500).json({ message: "Server error fetching users" });
-  }
-});
-
-/**
- * GET /api/ceo/users
- * Query: role (optional), search (optional)
- */
-router.get("/", ceoOnly, async (req, res) => {
-  try {
-    const { role, search } = req.query;
-
-    const filter = {};
-
-    if (role && Object.values(ROLES).includes(role)) {
-      filter.role = role;
-    }
-
-    if (search && search.trim()) {
-      const q = search.trim();
-      filter.$or = [
-        { name: { $regex: q, $options: "i" } },
-        { email: { $regex: q, $options: "i" } },
-      ];
-    }
-
-    const users = await User.find(filter)
-      .select("name email role coins createdAt isBlocked")
-      .sort({ createdAt: -1 });
-
-    return res.json({ users });
   } catch (err) {
     console.error("CEO users fetch error:", err);
     return res.status(500).json({ message: "Server error fetching users" });

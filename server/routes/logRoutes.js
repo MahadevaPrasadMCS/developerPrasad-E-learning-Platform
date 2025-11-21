@@ -1,6 +1,6 @@
 // server/routes/logRoutes.js
 import express from "express";
-import Log from "../models/Log.js";
+import Log from "../models/SystemLog.js";
 import { ROLES } from "../config/roles.js";
 import { requireRoles } from "../middleware/rbacMiddleware.js";
 

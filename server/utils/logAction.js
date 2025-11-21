@@ -1,5 +1,5 @@
 // server/utils/logAction.js
-import Log from "../models/Log.js";
+import Log from "../models/SystemLog.js";
 
 /**
  * logAction({
