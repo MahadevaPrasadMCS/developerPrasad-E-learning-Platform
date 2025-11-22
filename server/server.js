@@ -77,6 +77,7 @@ import logRoutes from "./routes/logRoutes.js";
 
 // Promotion System Routes
 import promotionRoutes from "./routes/promotionRoutes.js";
+import roleChangesRoutes from "./routes/roleChangesRoutes.js";
 
 // ==================================================
 // Route Application
@@ -98,6 +99,7 @@ app.use("/api/logs", logRoutes);
 
 // Promotion Workflow
 app.use("/api/promotions", promotionRoutes);
+app.use("/api/demotion", roleChangesRoutes);
 
 // Test root
 app.get("/", (req, res) => {

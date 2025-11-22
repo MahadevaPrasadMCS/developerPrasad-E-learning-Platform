@@ -63,7 +63,7 @@ export default async function authMiddleware(req, res, next) {
     }
 
     // 🔧 Maintenance mode — allow only CEO + Admin
-    if (maintenanceMode && !["ceo", "admin"].includes(user.role)) {
+    if (maintenanceMode && !["CEO", "ADMIN"].includes(user.role.toUpperCase())) {
       return res
         .status(503)
         .json({ message: "Maintenance ongoing. Try later." });

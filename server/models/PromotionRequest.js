@@ -1,3 +1,4 @@
+// server/models/PromotionRequest.js
 import mongoose from "mongoose";
 import { ROLES } from "../config/roles.js";
 
