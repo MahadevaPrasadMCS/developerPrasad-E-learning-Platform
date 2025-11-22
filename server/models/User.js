@@ -35,6 +35,10 @@ const userSchema = new mongoose.Schema(
       enum: Object.values(ROLES),
       default: ROLES.STUDENT,
     },
+      avatarUrl: {
+        type: String,
+        default: null,
+      },
 
     permissions: {
       type: permissionsSchema,

@@ -3,8 +3,8 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import authMiddleware from "../middleware/authMiddleware.js";
 import SystemLog from "../models/SystemLog.js";
+import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -18,14 +18,16 @@ router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password)
+    if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields required" });
+    }
 
     const normalizedEmail = normalizeEmail(email);
     const existingUser = await User.findOne({ email: normalizedEmail });
 
-    if (existingUser)
+    if (existingUser) {
       return res.status(400).json({ message: "Email already registered" });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
@@ -39,17 +41,18 @@ router.post("/register", async (req, res) => {
       actor: user._id,
       action: "REGISTER",
       targetUser: user._id,
-      details: { email: user.email }
+      details: { email: user.email },
     });
 
     return res.status(201).json({
       success: true,
       message: "Account created successfully. Please log in.",
     });
-
   } catch (err) {
     console.error("Register Error:", err);
-    return res.status(500).json({ message: "Server error during registration" });
+    return res
+      .status(500)
+      .json({ message: "Server error during registration" });
   }
 });
 
@@ -60,24 +63,37 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password)
-      return res.status(400).json({ message: "Email & Password required" });
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Email & Password required" });
+    }
 
     const normalizedEmail = normalizeEmail(email);
-    const user = await User.findOne({ email: normalizedEmail }).lean();
+    const user = await User.findOne({ email: normalizedEmail });
 
-    if (!user)
+    if (!user) {
       return res.status(404).json({ message: "Account not found" });
+    }
 
-    if (user.isBlocked)
+    if (user.isBlocked) {
       return res.status(403).json({
         message: "Account blocked by admin",
         reason: user.blockReason,
       });
+    }
 
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid)
+    if (!valid) {
       return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      console.error("❗ JWT_SECRET missing");
+      return res
+        .status(500)
+        .json({ message: "Server misconfiguration" });
+    }
 
     const token = jwt.sign(
       {
@@ -89,16 +105,15 @@ router.post("/login", async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    await User.findByIdAndUpdate(user._id, {
-      isLoggedOut: false,
-      lastLogin: new Date(),
-    });
+    user.isLoggedOut = false;
+    user.lastLogin = new Date();
+    await user.save();
 
     await SystemLog.create({
       actor: user._id,
       action: "LOGIN",
       targetUser: user._id,
-      details: { email: user.email }
+      details: { email: user.email },
     });
 
     return res.json({
@@ -112,64 +127,100 @@ router.post("/login", async (req, res) => {
         coins: user.coins,
         role: user.role,
         permissions: user.permissions || [],
-        avatar: user.avatar || null,
+        avatarUrl: user.avatarUrl || null,
+        bio: user.bio || "",
+        createdAt: user.createdAt,
         lastLogin: user.lastLogin,
       },
     });
-
   } catch (err) {
     console.error("Login Error:", err);
-    return res.status(500).json({ message: "Server error during login" });
+    return res
+      .status(500)
+      .json({ message: "Server error during login" });
   }
 });
 
-
 /* ==============================
-   GET LOGGED-IN USER DATA
+   ME (profile)  🔒
+   GET /api/auth/me
 =================================*/
 router.get("/me", authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const user = req.user; // from authMiddleware
 
-    res.json(user);
-
-  } catch (error) {
-    console.error("Profile Fetch Error:", error);
-    res.status(500).json({ message: "Failed to fetch profile data" });
+    return res.json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      coins: user.coins,
+      role: user.role,
+      permissions: user.permissions || [],
+      avatarUrl: user.avatarUrl || null,
+      bio: user.bio || "",
+      createdAt: user.createdAt,
+      lastLogin: user.lastLogin,
+    });
+  } catch (err) {
+    console.error("Me Error:", err);
+    return res.status(500).json({ message: "Failed to load profile" });
   }
 });
 
 /* ==============================
-   UPDATE PROFILE (name, bio)
+   UPDATE PROFILE  🔒
+   PATCH /api/auth/update
 =================================*/
 router.patch("/update", authMiddleware, async (req, res) => {
   try {
-    const { name, bio } = req.body;
-    if (!name?.trim()) {
-      return res.status(400).json({ message: "Name cannot be empty" });
+    const { name, bio, avatarUrl } = req.body;
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.id,
-      { name: name.trim(), bio: bio?.trim() || "" },
-      { new: true }
-    ).select("-password");
+    if (typeof name === "string" && name.trim()) {
+      user.name = name.trim();
+    }
+
+    if (typeof bio === "string") {
+      user.bio = bio.trim();
+    }
+
+    if (typeof avatarUrl === "string") {
+      user.avatarUrl = avatarUrl;
+    }
+
+    await user.save();
 
     await SystemLog.create({
-      actor: req.user.id,
+      actor: user._id,
       action: "PROFILE_UPDATE",
-      details: { name, bio }
+      targetUser: user._id,
+      details: { hasAvatar: !!avatarUrl },
     });
 
-    res.json({
-      message: "Profile updated successfully",
-      user: updatedUser,
+    return res.json({
+      message: "Profile updated",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        coins: user.coins,
+        role: user.role,
+        permissions: user.permissions || [],
+        avatarUrl: user.avatarUrl || null,
+        bio: user.bio || "",
+        createdAt: user.createdAt,
+        lastLogin: user.lastLogin,
+      },
     });
-
-  } catch (error) {
-    console.error("Profile Update Error:", error);
-    res.status(500).json({ message: "Failed to update profile" });
+  } catch (err) {
+    console.error("Update profile error:", err);
+    return res
+      .status(500)
+      .json({ message: "Failed to update profile" });
   }
 });
 
