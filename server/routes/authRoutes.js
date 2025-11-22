@@ -172,23 +172,27 @@ router.get("/me", authMiddleware, async (req, res) => {
    UPDATE PROFILE  🔒
    PATCH /api/auth/update
 =================================*/
-router.patch("/update-avatar", authMiddleware, updateProfile, async (req, res) => {
+router.patch("/update-avatar", authMiddleware, async (req, res) => {
   try {
     const { avatarUrl } = req.body;
     if (!avatarUrl) {
       return res.status(400).json({ message: "Avatar URL required" });
     }
 
-    const user = await User.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
       { avatarUrl },
       { new: true }
     ).select("-password");
 
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
     return res.json({
       success: true,
       message: "Avatar updated successfully",
-      user
+      user: updatedUser
     });
 
   } catch (err) {
@@ -196,6 +200,7 @@ router.patch("/update-avatar", authMiddleware, updateProfile, async (req, res) =
     res.status(500).json({ message: "Failed to update avatar" });
   }
 });
+
 
 
 export default router;
