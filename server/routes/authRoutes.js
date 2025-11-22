@@ -169,6 +169,12 @@ router.get("/me", authMiddleware, async (req, res) => {
 });
 
 /* ==============================
+   UPDATE PROFILE (name + bio only)
+   PATCH /api/auth/update
+=================================*/
+router.patch("/update", authMiddleware, updateProfile);
+
+/* ==============================
    UPDATE PROFILE  🔒
    PATCH /api/auth/update
 =================================*/
