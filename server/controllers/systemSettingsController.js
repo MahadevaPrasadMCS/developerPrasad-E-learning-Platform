@@ -4,7 +4,7 @@ import SystemLog from "../models/SystemLog.js";
 // If you don't want logs, you can remove SystemLog usage.
 
 const ensureCeo = (req, res) => {
-  if (!req.user || req.user.role !== "CEO") {
+  if (!req.user || req.user.role !== "ceo") {
     res.status(403).json({ message: "Only CEO can modify system settings" });
     return false;
   }
