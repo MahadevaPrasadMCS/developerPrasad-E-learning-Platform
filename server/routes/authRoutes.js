@@ -172,7 +172,7 @@ router.get("/me", authMiddleware, async (req, res) => {
    UPDATE PROFILE  🔒
    PATCH /api/auth/update
 =================================*/
-router.patch("/update-avatar", authMiddleware, async (req, res) => {
+router.patch("/update-avatar", authMiddleware, updateProfile, async (req, res) => {
   try {
     const { avatarUrl } = req.body;
     if (!avatarUrl) {
