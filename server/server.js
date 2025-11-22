@@ -77,7 +77,7 @@ import logRoutes from "./routes/logRoutes.js";
 
 // Promotion System Routes
 import promotionRoutes from "./routes/promotionRoutes.js";
-import roleChangesRoutes from "./routes/roleChangesRoutes.js";
+import roleChangesRoutes from "./routes/roleChangeRoutes.js";
 
 // ==================================================
 // Route Application
