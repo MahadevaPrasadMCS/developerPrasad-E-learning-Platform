@@ -122,4 +122,54 @@ router.post("/login", async (req, res) => {
   }
 });
 
+
+/* ==============================
+   GET LOGGED-IN USER DATA
+=================================*/
+router.get("/me", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json(user);
+
+  } catch (error) {
+    console.error("Profile Fetch Error:", error);
+    res.status(500).json({ message: "Failed to fetch profile data" });
+  }
+});
+
+/* ==============================
+   UPDATE PROFILE (name, bio)
+=================================*/
+router.patch("/update", authMiddleware, async (req, res) => {
+  try {
+    const { name, bio } = req.body;
+    if (!name?.trim()) {
+      return res.status(400).json({ message: "Name cannot be empty" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { name: name.trim(), bio: bio?.trim() || "" },
+      { new: true }
+    ).select("-password");
+
+    await SystemLog.create({
+      actor: req.user.id,
+      action: "PROFILE_UPDATE",
+      details: { name, bio }
+    });
+
+    res.json({
+      message: "Profile updated successfully",
+      user: updatedUser,
+    });
+
+  } catch (error) {
+    console.error("Profile Update Error:", error);
+    res.status(500).json({ message: "Failed to update profile" });
+  }
+});
+
 export default router;
