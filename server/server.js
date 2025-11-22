@@ -67,9 +67,6 @@ await connectDB();
 // Public Auth Routes
 import authRoutes from "./routes/authRoutes.js";
 
-// Controlled Auth Routes
-import authControlRoutes from "./controllers/authController.js";
-
 // CEO Governance Routes
 import roleRoutes from "./routes/roleRoutes.js";
 import ceoStatsRoutes from "./routes/ceoStatsRoutes.js";
@@ -91,9 +88,6 @@ app.use("/api/auth", authRoutes);
 
 // ⛔ Everything below requires valid JWT
 app.use(authMiddleware);
-
-// Controlled Auth
-app.use("/api/authcontrol", authControlRoutes);
 
 // CEO role-management + analytics
 app.use("/api/ceo/roles", roleRoutes);

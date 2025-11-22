@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import SystemLog from "../models/SystemLog.js";
 import authMiddleware from "../middleware/authMiddleware.js";
+import { updateProfile } from "../controllers/authController.js";
 
 const router = express.Router();
 
@@ -171,7 +172,7 @@ router.get("/me", authMiddleware, async (req, res) => {
    UPDATE PROFILE  🔒
    PATCH /api/auth/update
 =================================*/
-router.patch("/update", authMiddleware, async (req, res) => {
+router.patch("/update", authMiddleware, updateProfile, async (req, res) => {
   try {
     const { name, bio, avatarUrl } = req.body;
 
