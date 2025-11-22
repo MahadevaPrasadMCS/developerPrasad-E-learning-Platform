@@ -1,3 +1,4 @@
+// server/controllers/authController.js
 import User from "../models/User.js";
 
 export const updateProfile = async (req, res) => {

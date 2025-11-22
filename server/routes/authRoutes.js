@@ -172,57 +172,30 @@ router.get("/me", authMiddleware, async (req, res) => {
    UPDATE PROFILE  🔒
    PATCH /api/auth/update
 =================================*/
-router.patch("/update", authMiddleware, updateProfile, async (req, res) => {
+router.patch("/update-avatar", authMiddleware, updateProfile, async (req, res) => {
   try {
-    const { name, bio, avatarUrl } = req.body;
-
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    const { avatarUrl } = req.body;
+    if (!avatarUrl) {
+      return res.status(400).json({ message: "Avatar URL required" });
     }
 
-    if (typeof name === "string" && name.trim()) {
-      user.name = name.trim();
-    }
-
-    if (typeof bio === "string") {
-      user.bio = bio.trim();
-    }
-
-    if (typeof avatarUrl === "string") {
-      user.avatarUrl = avatarUrl;
-    }
-
-    await user.save();
-
-    await SystemLog.create({
-      actor: user._id,
-      action: "PROFILE_UPDATE",
-      targetUser: user._id,
-      details: { hasAvatar: !!avatarUrl },
-    });
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { avatarUrl },
+      { new: true }
+    ).select("-password");
 
     return res.json({
-      message: "Profile updated",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        coins: user.coins,
-        role: user.role,
-        permissions: user.permissions || [],
-        avatarUrl: user.avatarUrl || null,
-        bio: user.bio || "",
-        createdAt: user.createdAt,
-        lastLogin: user.lastLogin,
-      },
+      success: true,
+      message: "Avatar updated successfully",
+      user
     });
+
   } catch (err) {
-    console.error("Update profile error:", err);
-    return res
-      .status(500)
-      .json({ message: "Failed to update profile" });
+    console.error("Avatar update error:", err);
+    res.status(500).json({ message: "Failed to update avatar" });
   }
 });
+
 
 export default router;
