@@ -17,12 +17,11 @@ const router = express.Router();
 */
 
 // GET settings (any authenticated user)
-router.get("/settings", authMiddleware, getSystemSettings);
+router.get("/settings", getSystemSettings);
 
 // CEO-only modifications
 router.patch(
   "/settings/brand",
-  authMiddleware,
   updateBrandSettings
 );
 
@@ -40,7 +39,6 @@ router.patch(
 
 router.patch(
   "/settings/homepage",
-  authMiddleware,
   updateHomepageSettings
 );
 
