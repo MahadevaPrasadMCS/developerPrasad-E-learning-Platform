@@ -11,6 +11,7 @@ import Quiz from "./models/Quiz.js";
 import { startQuizExpiryJob } from "./cron/quizExpiryJob.js";
 import { connectDB } from "./config/db.js";
 import authMiddleware from "./middleware/authMiddleware.js";
+import { getSystemSettings } from "./controllers/systemSettingsController.js";
 
 dotenv.config();
 
@@ -85,6 +86,9 @@ import roleChangesRoutes from "./routes/roleChangeRoutes.js";
 // ==================================================
 // Route Application
 // ==================================================
+
+//Public system settings access
+app.get("/api/system/settings", getSystemSettings);
 
 // Public
 app.use("/api/auth", authRoutes);
