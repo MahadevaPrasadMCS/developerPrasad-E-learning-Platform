@@ -1,21 +1,38 @@
-// client/src/context/AuthContext.js
+// src/context/AuthContext.js
 import { createContext, useContext, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import FullScreenLoader from "../components/FullScreenLoader";
+import { ROLES } from "../config/roles";
+import api from "../utils/api";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔹 Load auth data on mount
+  const redirectByRole = (role) => {
+    const routes = {
+      [ROLES.CEO]: "/ceo",
+      [ROLES.ADMIN]: "/admin",
+      [ROLES.INSTRUCTOR]: "/instructor",
+      [ROLES.MODERATOR]: "/moderator",
+      [ROLES.STUDENT]: "/dashboard",
+    };
+    navigate(routes[role] || "/", { replace: true });
+  };
+
+  // Load from storage on mount
   useEffect(() => {
     const stored = localStorage.getItem("auth_data");
     if (stored) {
       try {
-        const { user, token } = JSON.parse(stored);
-        setUser(user);
-        setToken(token);
+        const parsed = JSON.parse(stored);
+        setUser(parsed.user);
+        setToken(parsed.token);
+        redirectByRole(parsed.user.role);
       } catch {
         localStorage.removeItem("auth_data");
       }
@@ -23,63 +40,71 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // 🔹 Listen for login/logout from other tabs
+  // Sync across tabs
   useEffect(() => {
-    const handleStorageChange = (e) => {
+    const onStorage = (e) => {
       if (e.key === "auth_data") {
-        const newAuth = e.newValue ? JSON.parse(e.newValue) : null;
-        if (!newAuth) {
-          // Logged out elsewhere
-          setUser(null);
-          setToken(null);
-          window.location.href = "/login";
-        } else if (newAuth.token !== token) {
-          // Logged in elsewhere
-          setUser(newAuth.user);
-          setToken(newAuth.token);
-          window.location.reload();
-        }
+        const data = e.newValue ? JSON.parse(e.newValue) : null;
+        setUser(data?.user || null);
+        setToken(data?.token || null);
+        if (!data) navigate("/login");
       }
     };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, [token]);
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [navigate]);
 
-  // 🔹 Login Function
-  const login = ({ user, token }) => {
-    const data = { user, token };
-    localStorage.setItem("auth_data", JSON.stringify(data));
-    setUser(user);
-    setToken(token);
+  const persistAuth = (nextUser, nextToken) => {
+    const auth = { user: nextUser, token: nextToken };
+    localStorage.setItem("auth_data", JSON.stringify(auth));
+    setUser(nextUser);
+    setToken(nextToken);
   };
 
-  // 🔹 Logout Function
-  const logout = (reason) => {
+  const login = ({ user, token }) => {
+    persistAuth(user, token);
+    redirectByRole(user.role);
+  };
+
+  const logout = () => {
     localStorage.removeItem("auth_data");
     setUser(null);
     setToken(null);
-    if (reason) alert(reason);
-    window.location.href = "/login";
+    navigate("/login", { replace: true });
   };
 
-  // 🔹 Global session monitor (handles blocked or forced logout)
-  const handleAuthError = (status, message) => {
-    if (status === 403) {
-      if (message?.includes("blocked"))
-        logout("🚫 Your account has been blocked by admin.");
-      else if (message?.includes("Session expired"))
-        logout("⚠️ Your session expired. Please log in again.");
-      else logout("⚠️ Access denied. Please log in again.");
-    } else if (status === 503 && message?.includes("maintenance")) {
-      alert("🛠️ Site is under maintenance. Try again later.");
+  // 🔄 Pull fresh profile from /auth/me
+  const updateUserFromServer = async () => {
+    try {
+      const res = await api.get("/auth/me");
+      const updatedUser = { ...(user || {}), ...res.data };
+      persistAuth(updatedUser, token);
+    } catch (err) {
+      console.error("Failed to refresh user from server:", err);
+      // if unauthorized, force logout
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        logout();
+      }
     }
+  };
+
+  const handleAuthError = (status) => {
+    if (status === 401 || status === 403) logout();
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, token, login, logout, setUser, handleAuthError, loading }}
+      value={{
+        user,
+        token,
+        login,
+        logout,
+        handleAuthError,
+        loading,
+        updateUserFromServer,
+      }}
     >
-      {children}
+      {loading ? <FullScreenLoader /> : children}
     </AuthContext.Provider>
   );
 };
