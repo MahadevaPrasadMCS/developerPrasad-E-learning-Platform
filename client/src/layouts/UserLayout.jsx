@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import Footer from "../components/Footer";
 import CookieConsent from "../components/CookieConsent";
+import api from "../utils/api";
 
 function UserLayout() {
   const { token, user, logout } = useAuth();
@@ -15,9 +16,25 @@ function UserLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const dropdownTimer = useRef(null);
 
+  const [platformName, setPlatformName] = useState("YouLearnHub");
+  const [logoUrl, setLogoUrl] = useState(null);
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await api.get("/system/settings");
+        const data = res.data || {};
+        setPlatformName(data.platformName || "YouLearnHub");
+        setLogoUrl(data.logoUrl || null);
+      } catch (err) {
+        console.error("UserLayout: failed to load system settings", err);
+      }
+    }
+    loadSettings();
+  }, []);
+
   const handleLogout = () => logout(user?.role);
 
-  /* 🧭 Card-like animated NavItem */
   const NavItem = ({ to, label, icon: Icon }) => (
     <NavLink
       to={to}
@@ -37,7 +54,6 @@ function UserLayout() {
     </NavLink>
   );
 
-  // 🗂️ Organized groups with more meaningful titles
   const groupedLinks = [
     {
       label: "📘 Learn & Practice",
@@ -70,14 +86,6 @@ function UserLayout() {
     },
   ];
 
-  const moreLinks = [
-    { label: "Explore", to: "/explore" },
-    { label: "About Us", to: "/about" },
-    { label: "Contact", to: "/contact" },
-    { label: "Support Center", to: "/support" },
-  ];
-
-  /* ⏱ Clean dropdown cleanup */
   useEffect(() => {
     const timer = dropdownTimer.current;
     return () => {
@@ -87,131 +95,101 @@ function UserLayout() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* 🌙 Navbar */}
+      {/* Navbar */}
       <nav className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/90 backdrop-blur-lg shadow-md border-b border-gray-100 dark:border-gray-800 transition-all">
         <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-3">
-          {/* 🔹 Logo */}
-          <div
-            onClick={() => navigate("/")}
+          {/* Logo + platform name */}
+          <button
+            onClick={() => navigate("/dashboard")}
             className="flex items-center gap-2 cursor-pointer select-none"
           >
-            <img
-              src={require("../assets/logo.png")}
-              alt="logo"
-              className="h-9 w-9 rounded-full"
-            />
-            <h1 className="text-xl font-bold text-teal-600 dark:text-teal-400 tracking-wide">
-              YouLearnHub
-            </h1>
-          </div>
+            <div className="w-9 h-9 rounded-full bg-slate-900/80 dark:bg-slate-900 shadow-md shadow-emerald-500/30 border border-slate-700/70 overflow-hidden flex items-center justify-center">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="logo"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-[11px] font-bold text-white">
+                  {platformName?.slice(0, 2).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col items-start">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+                Student Console
+              </span>
+              <h1 className="text-base font-bold text-teal-600 dark:text-teal-400 tracking-wide">
+                {platformName}
+              </h1>
+            </div>
+          </button>
 
-          {/* 🧭 Desktop Menu */}
+          {/* Desktop menu (student only) */}
           <ul className="hidden md:flex items-center gap-3">
-            {!token ? (
-              <>
-                <NavItem to="/" label="Home" />
-                <div
-                  className="relative group"
-                  onMouseEnter={() => {
-                    if (dropdownTimer.current)
-                      clearTimeout(dropdownTimer.current);
-                    setDropdown("visit");
-                  }}
-                  onMouseLeave={() => {
-                    dropdownTimer.current = setTimeout(
-                      () => setDropdown(null),
-                      200
-                    );
-                  }}
+            {groupedLinks.map((group, idx) => (
+              <div
+                key={idx}
+                className="relative group"
+                onMouseEnter={() => {
+                  if (dropdownTimer.current)
+                    clearTimeout(dropdownTimer.current);
+                  setDropdown(idx);
+                }}
+                onMouseLeave={() => {
+                  dropdownTimer.current = setTimeout(
+                    () => setDropdown(null),
+                    200
+                  );
+                }}
+              >
+                <button
+                  className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                    dropdown === idx
+                      ? "text-teal-600 dark:text-teal-400 bg-teal-100/60 dark:bg-teal-900/40"
+                      : "text-gray-700 dark:text-gray-200 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50/60 dark:hover:bg-gray-800/60"
+                  }`}
                 >
-                  <button
-                    className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                      dropdown === "visit"
-                        ? "text-teal-600 dark:text-teal-400 bg-teal-100/60 dark:bg-teal-900/40"
-                        : "text-gray-700 dark:text-gray-200 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50/60 dark:hover:bg-gray-800/60"
-                    }`}
-                  >
-                    Visit
-                    {dropdown === "visit" ? (
-                      <ChevronUp size={14} />
-                    ) : (
-                      <ChevronDown size={14} />
-                    )}
-                  </button>
+                  {group.label}
+                  {dropdown === idx ? (
+                    <ChevronUp size={14} />
+                  ) : (
+                    <ChevronDown size={14} />
+                  )}
+                </button>
 
-                  <div
-                    className={`absolute left-0 mt-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 min-w-[180px] backdrop-blur-md transition-all duration-200 grid gap-1 ${
-                      dropdown === "visit"
-                        ? "opacity-100 translate-y-0 pointer-events-auto"
-                        : "opacity-0 translate-y-1 pointer-events-none"
-                    }`}
-                  >
-                    {moreLinks.map((link) => (
-                      <NavItem key={link.to} to={link.to} label={link.label} />
-                    ))}
-                  </div>
-                </div>
-
-                <NavItem to="/register" label="Register" />
-                <NavItem to="/login" label="Login" />
-              </>
-            ) : (
-              groupedLinks.map((group, idx) => (
                 <div
-                  key={idx}
-                  className="relative group"
-                  onMouseEnter={() => {
-                    if (dropdownTimer.current)
-                      clearTimeout(dropdownTimer.current);
-                    setDropdown(idx);
-                  }}
-                  onMouseLeave={() => {
-                    dropdownTimer.current = setTimeout(
-                      () => setDropdown(null),
-                      200
-                    );
-                  }}
+                  className={`absolute left-0 mt-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 min-w-[200px] backdrop-blur-md transition-all duration-200 grid gap-2 ${
+                    dropdown === idx
+                      ? "opacity-100 translate-y-0 pointer-events-auto"
+                      : "opacity-0 translate-y-1 pointer-events-none"
+                  }`}
                 >
-                  <button
-                    className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                      dropdown === idx
-                        ? "text-teal-600 dark:text-teal-400 bg-teal-100/60 dark:bg-teal-900/40"
-                        : "text-gray-700 dark:text-gray-200 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50/60 dark:hover:bg-gray-800/60"
-                    }`}
-                  >
-                    {group.label}
-                    {dropdown === idx ? (
-                      <ChevronUp size={14} />
-                    ) : (
-                      <ChevronDown size={14} />
-                    )}
-                  </button>
-
-                  <div
-                    className={`absolute left-0 mt-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 min-w-[200px] backdrop-blur-md transition-all duration-200 grid gap-2 ${
-                      dropdown === idx
-                        ? "opacity-100 translate-y-0 pointer-events-auto"
-                        : "opacity-0 translate-y-1 pointer-events-none"
-                    }`}
-                  >
-                    {group.items.map((i) => (
-                      <NavItem key={i.to} to={i.to} label={i.label} />
-                    ))}
-                  </div>
+                  {group.items.map((i) => (
+                    <NavItem key={i.to} to={i.to} label={i.label} />
+                  ))}
                 </div>
-              ))
-            )}
+              </div>
+            ))}
 
-            {/* 🌞 Theme Toggle */}
+            {/* Theme toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+              className="
+                w-9 h-9 rounded-full flex items-center justify-center
+                transition-all duration-300
+                bg-emerald-200 text-emerald-700
+                dark:bg-emerald-700 dark:text-white
+                border border-emerald-300 dark:border-emerald-500
+                hover:brightness-105 dark:hover:brightness-110
+              "
               title="Toggle theme"
             >
-              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+              {darkMode ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
-            {/* 🚪 Logout */}
+            {/* Logout */}
             {token && (
               <button
                 onClick={handleLogout}
@@ -222,41 +200,54 @@ function UserLayout() {
             )}
           </ul>
 
-          {/* 📱 Mobile Menu Toggle */}
+          {/* Mobile menu toggle */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded hover:bg-blue-100 dark:hover:bg-gray-800 transition"
+            className="
+              md:hidden p-2 rounded-lg
+              bg-emerald-600
+              text-white
+              border border-emerald-500
+              hover:brightness-110
+              transition-colors duration-300
+            "
           >
             {menuOpen ? "✖" : "☰"}
           </button>
         </div>
 
-        {/* 📱 Mobile Menu */}
+        {/* Mobile menu (student only) */}
         {menuOpen && (
           <div className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-3 space-y-2 animate-fade-in">
-            {!token ? (
-              <>
-                <NavItem to="/" label="Home" />
-                {moreLinks.map((l) => (
-                  <NavItem key={l.to} to={l.to} label={l.label} />
-                ))}
-                <NavItem to="/register" label="Register" />
-                <NavItem to="/login" label="Login" />
-              </>
-            ) : (
-              groupedLinks.map((group) => (
-                <details key={group.label}>
-                  <summary className="cursor-pointer py-2 text-gray-700 dark:text-gray-200 font-medium flex justify-between items-center">
-                    {group.label}
-                  </summary>
-                  <div className="ml-3 space-y-1 mt-1">
-                    {group.items.map((i) => (
-                      <NavItem key={i.to} to={i.to} label={i.label} />
-                    ))}
-                  </div>
-                </details>
-              ))
-            )}
+            {groupedLinks.map((group) => (
+              <details key={group.label}>
+                <summary className="cursor-pointer py-2 text-gray-700 dark:text-gray-200 font-medium flex justify-between items-center">
+                  {group.label}
+                </summary>
+                <div className="ml-3 space-y-1 mt-1">
+                  {group.items.map((i) => (
+                    <NavItem key={i.to} to={i.to} label={i.label} />
+                  ))}
+                </div>
+              </details>
+            ))}
+
+            {/* Theme toggle mobile */}
+            <button
+              onClick={toggleTheme}
+              className="
+                w-10 h-10 rounded-full flex items-center justify-center
+                transition-all duration-300
+                bg-emerald-200 text-emerald-700
+                dark:bg-emerald-700 dark:text-white
+                border border-emerald-300 dark:border-emerald-500
+                hover:brightness-105 dark:hover:brightness-110
+                shadow-sm dark:shadow-md
+              "
+              title="Toggle theme"
+            >
+              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
 
             {token && (
               <button
@@ -270,7 +261,7 @@ function UserLayout() {
         )}
       </nav>
 
-      {/* 🌿 Page Content */}
+      {/* Page content */}
       <main className="flex-grow p-4 md:p-6 bg-gray-50 dark:bg-gray-900 transition">
         <Outlet />
       </main>
