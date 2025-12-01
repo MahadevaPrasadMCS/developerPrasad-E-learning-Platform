@@ -1,130 +1,131 @@
+// src/pages/Login.jsx
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate, Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { toast } from "react-hot-toast";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 
-function Login() {
+export default function Login() {
   const { login } = useAuth();
-  const navigate = useNavigate();
-
+  const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
     setLoading(true);
 
     try {
       const res = await api.post("/auth/login", form);
-      const { user, token } = res.data;
-
-      if (!user || !token) throw new Error("Invalid response from server");
-
-      login({ user, token });
-
-      // 🎯 Redirect based on role
-      if (user.role === "ceo") {
-        navigate("/ceo");
-      } else if (user.role === "admin") {
-        navigate("/admin");
-      }else if (user.role === "instructor") {
-        navigate("/instructor");
-      } else if (user.role === "moderator") {
-        navigate("/moderator");
-      } 
-      else {
-        navigate("/dashboard");
-      }
+      login(res.data);
+      toast.success("Welcome back! 🚀");
     } catch (err) {
-      console.error("Login failed:", err);
-      setError(err.response?.data?.message || "Invalid email or password");
+      const msg = err.response?.data?.message || "Login failed!";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-6 py-12">
-      <div className="w-full max-w-md bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-teal-200/20 dark:hover:shadow-teal-700/30">
-        <h1 className="text-3xl font-extrabold text-center text-teal-600 dark:text-teal-400 mb-2">
-          Welcome Back 👋
+    <div className="min-h-screen flex items-center justify-center 
+    bg-gradient-to-br from-emerald-400/20 via-teal-600/20 to-slate-900/30 
+    dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 px-6 py-12">
+
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md p-8 rounded-2xl shadow-2xl 
+        bg-white/90 dark:bg-slate-900/90 
+        backdrop-blur-xl border border-white/30 dark:border-slate-700"
+      >
+        <h1 className="text-3xl font-bold text-center 
+        bg-gradient-to-r from-emerald-500 to-teal-400 bg-clip-text text-transparent">
+          YouLearnHub
         </h1>
-        <p className="text-center text-gray-600 dark:text-gray-400 mb-8 text-sm">
-          Sign in to continue your learning journey.
+        <p className="text-center text-sm text-slate-500 dark:text-slate-300 mt-1">
+          Continue learning, continue growing ✨
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Email
-            </label>
+        <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
+          {/* Email */}
+          <div className="relative">
             <input
               type="email"
-              id="email"
-              placeholder="you@example.com"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className="peer w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 
+              dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-white 
+              placeholder-transparent focus:ring-2 focus:ring-emerald-500 outline-none transition"
+              placeholder="Email"
               required
-              className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all"
+              value={form.email}
+              onChange={(e) =>
+                setForm({ ...form, email: e.target.value.trim().toLowerCase() })
+              }
             />
+            <label className="absolute left-3 top-3 text-xs text-slate-500 dark:text-slate-400 
+            transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm
+            peer-focus:top-0 peer-focus:text-emerald-500 peer-focus:text-xs">
+              Email Address
+            </label>
           </div>
 
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
+          {/* Password */}
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              className="peer w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 
+              dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-white 
+              placeholder-transparent focus:ring-2 focus:ring-emerald-500 outline-none transition"
+              placeholder="Password"
+              required
+              value={form.password}
+              onChange={(e) =>
+                setForm({ ...form, password: e.target.value })
+              }
+            />
+            <label className="absolute left-3 top-3 text-xs text-slate-500 dark:text-slate-400
+            transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm
+            peer-focus:top-0 peer-focus:text-emerald-500 peer-focus:text-xs">
               Password
             </label>
-            <input
-              type="password"
-              id="password"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              required
-              className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all"
-            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-3 text-slate-400 hover:text-emerald-500"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
 
-          {error && (
-            <div className="text-red-600 dark:text-red-400 text-sm text-center bg-red-50 dark:bg-red-900/30 py-2 rounded-lg">
-              {error}
-            </div>
-          )}
-
-          <button
+          {/* Login Button */}
+          <motion.button
+            whileTap={{ scale: 0.97 }}
             type="submit"
             disabled={loading}
-            className={`w-full py-3 font-semibold rounded-lg transition-all duration-300 shadow-md text-white ${
-              loading
-                ? "bg-teal-400 cursor-not-allowed"
-                : "bg-teal-600 hover:bg-teal-700 hover:scale-[1.02]"
-            }`}
+            className="w-full py-3 rounded-lg flex items-center justify-center gap-2
+            bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold 
+            shadow-lg shadow-emerald-500/30 transition disabled:opacity-70"
           >
-            {loading ? "Logging in..." : "Login"}
-          </button>
-
-          <div className="flex justify-between items-center text-sm mt-3 text-gray-500 dark:text-gray-400">
-            <Link
-              to="/register"
-              className="hover:text-teal-600 dark:hover:text-teal-400 transition-all"
-            >
-              Create an account
-            </Link>
-            <span className="hover:text-teal-600 dark:hover:text-teal-400 cursor-pointer transition-all">
-              Forgot password?
-            </span>
-          </div>
+            {loading ? (
+              "Signing in..."
+            ) : (
+              <>
+                <LogIn size={18} /> Sign In
+              </>
+            )}
+          </motion.button>
         </form>
-      </div>
+
+        {/* Register link */}
+        <p className="text-xs text-center mt-5 text-slate-500 dark:text-slate-400">
+          New to learning?{" "}
+          <Link to="/register" className="text-emerald-600 font-medium hover:underline">
+            Create account
+          </Link>
+        </p>
+      </motion.div>
     </div>
   );
 }
-
-export default Login;
