@@ -1,12 +1,23 @@
 // server/middleware/authMiddleware.js
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { ROLES } from "../config/roles.js"; // ⬅ ADDED
 
 let maintenanceMode = false;
 
 // You can import and call this from some admin/CEO controller
 export const setMaintenanceMode = (value) => {
   maintenanceMode = Boolean(value);
+};
+
+// 🔐 CEO-only route guard
+export const requireCEO = (req, res, next) => {
+  if (!req.user || req.user.role !== ROLES.CEO) {
+    return res.status(403).json({
+      message: "Access denied. CEO only.",
+    });
+  }
+  next();
 };
 
 export default async function authMiddleware(req, res, next) {
@@ -63,7 +74,7 @@ export default async function authMiddleware(req, res, next) {
     }
 
     // 🔧 Maintenance mode — allow only CEO + Admin
-    if (maintenanceMode && !["CEO", "ADMIN"].includes(user.role.toUpperCase())) {
+    if (maintenanceMode && ![ROLES.CEO, ROLES.ADMIN].includes(user.role)) {
       return res
         .status(503)
         .json({ message: "Maintenance ongoing. Try later." });
