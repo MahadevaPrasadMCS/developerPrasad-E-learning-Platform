@@ -47,3 +47,153 @@
   animation: fade-pop 0.3s ease-out;
 }
 
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 6s infinite ease-in-out;
+}
+
+/* ✨ Smooth Entrance Animations */
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.9s cubic-bezier(0.17, 0.55, 0.55, 1) forwards;
+}
+
+/* 🌑 Floating & Rotating Shapes */
+.floating-shape {
+  position: absolute;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  filter: blur(42px);
+  animation: float 7s infinite ease-in-out;
+}
+
+@keyframes float {
+  0%,100% { transform: translateY(0) scale(1); opacity: 0.45; }
+  50% { transform: translateY(20px) scale(1.06); opacity: 0.75; }
+}
+
+/* 🌐 Animated Feature Cards */
+.feature-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(14px);
+  border-radius: 1.2rem;
+  padding: 1.8rem;
+  border: 1px solid rgba(255,255,255,0.1);
+  text-align: center;
+  animation: fade-up 0.8s ease forwards;
+  transform-style: preserve-3d;
+  transition: all 0.4s;
+}
+
+.feature-card:hover {
+  transform: translateY(-8px) rotateX(4deg);
+  border-color: rgba(20,200,180,0.4);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.14);
+}
+
+/* CTA Buttons */
+.cta-primary {
+  @apply px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl shadow-xl hover:shadow-2xl transform hover:scale-[1.08] transition-all duration-300;
+}
+.cta-secondary {
+  @apply px-8 py-3 bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-semibold rounded-xl hover:bg-gray-300 dark:hover:bg-gray-700 shadow-md transform hover:scale-[1.08] transition-all duration-300;
+}
+
+.parallax {
+  animation: parallaxMove 12s infinite ease-in-out alternate;
+}
+
+@keyframes parallaxMove {
+  0% { transform: translateY(0px) translateX(0px); }
+  100% { transform: translateY(-30px) translateX(25px); }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.fade-in-section {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: all 0.8s ease-out;
+}
+
+.fade-in-section.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@keyframes fade-up {
+  0% { opacity: 0; transform: translateY(40px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fade-up 0.8s ease-out forwards; }
+
+.floating-shape {
+  position: absolute;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  filter: blur(42px);
+  animation: float 12s infinite ease-in-out;
+}
+@keyframes float {
+  0%,100% { transform: translateY(0) scale(1); opacity: 0.3; }
+  50% { transform: translateY(20px) scale(1.08); opacity: 0.6; }
+}
+.parallax { animation-direction: alternate; }
+
+.feature-card {
+  backdrop-filter: blur(14px);
+  border-radius: 1.2rem;
+  transition: all 0.4s;
+}
+.feature-card:hover {
+  transform: translateY(-8px);
+  border-color: rgba(20,200,180,0.4);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes fade-up {
+  0% { opacity: 0; transform: translateY(40px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fade-up 0.8s ease-out forwards;
+}
+
+.floating-shape {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  filter: blur(40px);
+  animation: float 10s infinite ease-in-out;
+  transition: transform 0.3s;
+}
+@keyframes float {
+  0%,100% { transform: translateY(0px) scale(1); opacity: 0.3; }
+  50% { transform: translateY(20px) scale(1.05); opacity: 0.6; }
+}
+.parallax { animation-direction: alternate; }
+
+.primary-btn {
+  @apply bg-teal-600 hover:bg-teal-700 text-white rounded-lg;
+}
+.secondary-btn {
+  @apply bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg;
+}
