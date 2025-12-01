@@ -74,6 +74,8 @@ import authRoutes from "./routes/authRoutes.js";
 import roleRoutes from "./routes/roleRoutes.js";
 import ceoStatsRoutes from "./routes/ceoStatsRoutes.js";
 import ceoUserRoutes from "./routes/ceoUserRoutes.js";
+import ceoWalletRoutes from "./routes/ceoWalletRoutes.js";
+
 import systemSettingsRoutes from "./routes/systemSettingsRoutes.js";
 
 // Logs Route
@@ -100,6 +102,7 @@ app.use(authMiddleware);
 app.use("/api/ceo/roles", roleRoutes);
 app.use("/api/ceo/stats", ceoStatsRoutes);
 app.use("/api/ceo/users", ceoUserRoutes);
+app.use("/api/ceo/wallet", ceoWalletRoutes);
 app.use("/api/system", systemSettingsRoutes);
 
 // Logs for CEO/Admin
