@@ -1,3 +1,4 @@
+// server/models/WalletTransaction.js
 import mongoose from "mongoose";
 
 const TRANSACTION_TYPES = ["credit", "debit"]; // add more if required later
