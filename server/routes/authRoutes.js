@@ -5,16 +5,14 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import SystemLog from "../models/SystemLog.js";
 import authMiddleware from "../middleware/authMiddleware.js";
-import { updateProfile } from "../controllers/authController.js";
+import { updateProfile, updateAvatar, getMe } from "../controllers/authController.js";
 
 const router = express.Router();
 
-// Helper: Normalize Email
+// Normalize Email
 const normalizeEmail = (email) => String(email).toLowerCase().trim();
 
-/* ==============================
-   REGISTER
-=================================*/
+/* REGISTER */
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -51,31 +49,23 @@ router.post("/register", async (req, res) => {
     });
   } catch (err) {
     console.error("Register Error:", err);
-    return res
-      .status(500)
-      .json({ message: "Server error during registration" });
+    res.status(500).json({ message: "Server error during registration" });
   }
 });
 
-/* ==============================
-   LOGIN
-=================================*/
+/* LOGIN */
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email & Password required" });
+      return res.status(400).json({ message: "Email & Password required" });
     }
 
     const normalizedEmail = normalizeEmail(email);
     const user = await User.findOne({ email: normalizedEmail });
 
-    if (!user) {
-      return res.status(404).json({ message: "Account not found" });
-    }
+    if (!user) return res.status(404).json({ message: "Account not found" });
 
     if (user.isBlocked) {
       return res.status(403).json({
@@ -85,23 +75,15 @@ router.post("/login", async (req, res) => {
     }
 
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
+    if (!valid) return res.status(400).json({ message: "Invalid credentials" });
 
     if (!process.env.JWT_SECRET) {
       console.error("❗ JWT_SECRET missing");
-      return res
-        .status(500)
-        .json({ message: "Server misconfiguration" });
+      return res.status(500).json({ message: "Server misconfiguration" });
     }
 
     const token = jwt.sign(
-      {
-        id: user._id,
-        role: user.role,
-        sessionVersion: user.sessionVersion,
-      },
+      { id: user._id, role: user.role, sessionVersion: user.sessionVersion },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -127,86 +109,26 @@ router.post("/login", async (req, res) => {
         email: user.email,
         coins: user.coins,
         role: user.role,
-        permissions: user.permissions || [],
-        avatarUrl: user.avatarUrl || null,
-        bio: user.bio || "",
+        permissions: user.permissions,
+        avatarUrl: user.avatarUrl,
+        bio: user.bio,
         createdAt: user.createdAt,
         lastLogin: user.lastLogin,
       },
     });
   } catch (err) {
     console.error("Login Error:", err);
-    return res
-      .status(500)
-      .json({ message: "Server error during login" });
+    res.status(500).json({ message: "Server error during login" });
   }
 });
 
-/* ==============================
-   ME (profile)  🔒
-   GET /api/auth/me
-=================================*/
-router.get("/me", authMiddleware, async (req, res) => {
-  try {
-    const user = req.user; // from authMiddleware
+/* ME PROFILE */
+router.get("/me", authMiddleware, getMe);
 
-    return res.json({
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      coins: user.coins,
-      role: user.role,
-      permissions: user.permissions || [],
-      avatarUrl: user.avatarUrl || null,
-      bio: user.bio || "",
-      createdAt: user.createdAt,
-      lastLogin: user.lastLogin,
-    });
-  } catch (err) {
-    console.error("Me Error:", err);
-    return res.status(500).json({ message: "Failed to load profile" });
-  }
-});
-
-/* ==============================
-   UPDATE PROFILE (name + bio only)
-   PATCH /api/auth/update
-=================================*/
+/* UPDATE NAME + BIO */
 router.patch("/update", authMiddleware, updateProfile);
 
-/* ==============================
-   UPDATE PROFILE  🔒
-   PATCH /api/auth/update
-=================================*/
-router.patch("/update-avatar", authMiddleware, updateProfile, async (req, res) => {
-  try {
-    const { avatarUrl } = req.body;
-    if (!avatarUrl) {
-      return res.status(400).json({ message: "Avatar URL required" });
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user._id,
-      { avatarUrl },
-      { new: true }
-    ).select("-password");
-
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    return res.json({
-      success: true,
-      message: "Avatar updated successfully",
-      user: updatedUser
-    });
-
-  } catch (err) {
-    console.error("Avatar update error:", err);
-    res.status(500).json({ message: "Failed to update avatar" });
-  }
-});
-
-
+/* UPDATE AVATAR ONLY */
+router.patch("/update-avatar", authMiddleware, updateAvatar);
 
 export default router;
