@@ -21,22 +21,33 @@ app.set("trust proxy", 1);
 // ==================================================
 // CORS
 // ==================================================
+// ==================================================
+// CORS - FIXED
+// ==================================================
 const allowedOrigins = [
+  process.env.FRONTEND_URL,
   "http://localhost:3000",
   "https://youlearnhub-dp.vercel.app",
-];
+].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (mobile apps / cron / health checks / internal server)
+      if (!origin) {
         return callback(null, true);
       }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.error("❌ CORS blocked:", origin);
       return callback(new Error("CORS: Unauthorized origin"));
     },
-    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
   })
 );
 

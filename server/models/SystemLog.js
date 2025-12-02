@@ -1,3 +1,4 @@
+// models/SystemLog.js
 import mongoose from "mongoose";
 
 // Action Categories — can be extended later
