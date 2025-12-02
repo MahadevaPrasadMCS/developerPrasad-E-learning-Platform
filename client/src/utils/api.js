@@ -1,12 +1,9 @@
 // src/utils/api.js
 import axios from "axios";
 import NProgress from "nprogress";
-import { useAuth } from "../context/AuthContext";
 import "nprogress/nprogress.css";
 
-const backendURL =
-  process.env.REACT_APP_API_URL ||
-  "https://youlearnhub-backend.onrender.com/api";
+const backendURL = "https://youlearnhub-backend.onrender.com/api";
 
 const api = axios.create({
   baseURL: backendURL,

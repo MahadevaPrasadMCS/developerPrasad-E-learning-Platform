@@ -41,7 +41,7 @@ export default function ProfileAvatar({
       {editing && (
         <>
           <button
-            onClick={onPick}
+            onClick={editing ? onPick : undefined}
             className="absolute bottom-1 right-1 bg-black/80 text-white p-2 rounded-full hover:bg-black"
           >
             <Camera size={16} />
