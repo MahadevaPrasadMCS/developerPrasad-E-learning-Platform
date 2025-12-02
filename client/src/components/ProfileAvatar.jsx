@@ -5,7 +5,6 @@ export default function ProfileAvatar({
   avatarUrl,
   localPreview,
   editing,
-  onPick,
   onDelete,
   fileInputRef,
   setShowPreview,
@@ -13,11 +12,20 @@ export default function ProfileAvatar({
 }) {
   const displayUrl = localPreview || avatarUrl;
 
+  const handleAvatarClick = () => {
+    if (editing) {
+      fileInputRef.current?.click(); // <-- Direct user action = Allowed
+    } else {
+      setShowPreview(true);
+    }
+  };
+
   return (
     <div className="relative w-28 h-28">
       <div
+        onClick={handleAvatarClick}
         className={`w-full h-full rounded-full overflow-hidden shadow-md 
-          bg-gray-200 dark:bg-gray-700 flex items-center justify-center
+          bg-gray-200 dark:bg-gray-700 flex items-center justify-center cursor-pointer
           ${editing && "ring-4 ring-emerald-500 ring-offset-2"}
         `}
       >
@@ -25,10 +33,7 @@ export default function ProfileAvatar({
           <img
             src={displayUrl}
             alt="Avatar"
-            onClick={() => !editing && setShowPreview(true)}
-            className={`w-full h-full object-cover transition-all
-              ${!editing && "cursor-pointer hover:scale-105 duration-150"}
-            `}
+            className="w-full h-full object-cover transition-all hover:scale-105 duration-150"
           />
         ) : (
           <span className="text-3xl font-semibold text-gray-700 dark:text-gray-100">
@@ -37,32 +42,32 @@ export default function ProfileAvatar({
         )}
       </div>
 
-      {/* Upload */}
-      {editing && (
-        <>
-          <button
-            onClick={editing ? onPick : undefined}
-            className="absolute bottom-1 right-1 bg-black/80 text-white p-2 rounded-full hover:bg-black"
-          >
-            <Camera size={16} />
-          </button>
-          <input
-            type="file"
-            hidden
-            accept="image/*"
-            ref={fileInputRef}
-            onChange={onPick}
-          />
-        </>
-      )}
+      {/* Upload Input */}
+      <input
+        type="file"
+        hidden
+        accept="image/*"
+        ref={fileInputRef}
+        // Directly handled in parent (handleAvatarSelect)
+      />
 
-      {/* Delete */}
+      {/* Delete Button */}
       {editing && avatarUrl && (
         <button
           onClick={onDelete}
           className="absolute -right-2 -top-2 bg-red-500 text-white p-1.5 rounded-full shadow-md hover:bg-red-600"
         >
           <Trash2 size={14} />
+        </button>
+      )}
+
+      {/* Camera Button (Optional visual cue) */}
+      {editing && (
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="absolute bottom-1 right-1 bg-black/80 text-white p-2 rounded-full hover:bg-black"
+        >
+          <Camera size={16} />
         </button>
       )}
     </div>
