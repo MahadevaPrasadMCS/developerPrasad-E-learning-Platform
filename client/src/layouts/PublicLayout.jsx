@@ -1,5 +1,4 @@
 // src/layouts/PublicLayout.jsx
-
 import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { Sun, Moon, ChevronDown, ChevronUp } from "lucide-react";
@@ -9,7 +8,7 @@ import Footer from "../components/Footer";
 import CookieConsent from "../components/CookieConsent";
 import api from "../utils/api";
 
-function PublicLayout() {
+export default function PublicLayout() {
   const { token, logout } = useAuth();
   const { darkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -19,7 +18,6 @@ function PublicLayout() {
   const [platformName, setPlatformName] = useState("YouLearnHub");
   const [logoUrl, setLogoUrl] = useState(null);
 
-  // Unified branding fetch aligned with backend response
   const fetchBranding = async () => {
     try {
       const res = await api.get("/system/settings");
@@ -36,13 +34,15 @@ function PublicLayout() {
     fetchBranding();
   }, []);
 
-  // Listen for live branding updates
   useEffect(() => {
     const refreshBranding = () => fetchBranding();
     window.addEventListener("brandingUpdated", refreshBranding);
     return () => window.removeEventListener("brandingUpdated", refreshBranding);
   }, []);
 
+  /* ------------------------------
+      Navigation Groups
+  ------------------------------ */
   const groupedLinks = [
     { label: "Home", to: "/" },
     {
@@ -62,6 +62,9 @@ function PublicLayout() {
     },
   ];
 
+  /* ------------------------------
+      Premium Nav Item Component
+  ------------------------------ */
   const NavItem = ({ to, label }) => (
     <NavLink
       to={to}
@@ -70,10 +73,11 @@ function PublicLayout() {
         setOpenDropdown(null);
       }}
       className={({ isActive }) =>
-        `block px-3 py-2 text-sm rounded-lg transition-all ${
+        `block px-3 py-2 text-sm rounded-lg transition-all select-none
+        ${
           isActive
-            ? "font-semibold text-teal-600 dark:text-teal-300 bg-teal-50 dark:bg-gray-800 shadow-sm"
-            : "text-gray-700 dark:text-gray-200 hover:text-teal-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+            ? "font-semibold bg-emerald-50 dark:bg-teal-900/30 text-emerald-700 dark:text-teal-300 shadow-sm"
+            : "text-gray-700 dark:text-gray-200 hover:text-emerald-600 dark:hover:text-teal-400 hover:bg-gray-100/70 dark:hover:bg-gray-800/80"
         }`
       }
     >
@@ -86,33 +90,56 @@ function PublicLayout() {
     setMenuOpen(false);
   };
 
+  /* ============================================================
+        MAIN LAYOUT WITH PREMIUM NAVBAR
+     ============================================================ */
   return (
-    <div className="flex flex-col min-h-screen bg-white dark:bg-gray-950 transition-all">
-      {/* Navbar */}
-      <nav className="sticky top-0 z-50 bg-white/80 dark:bg-gray-950/90 border-b border-gray-200 dark:border-gray-800 shadow-sm backdrop-blur-xl transition-all">
+    <div className="flex flex-col min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-all">
+      
+      {/* ============================
+            PREMIUM NAVBAR
+      ============================ */}
+      <nav className="
+        sticky top-0 z-50 backdrop-blur-xl
+        bg-white/70 dark:bg-gray-950/70
+        border-b border-gray-200/60 dark:border-gray-800/70
+        shadow-[0_4px_20px_rgba(0,0,0,0.04)]
+        transition-colors
+      ">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-3">
-          
-          {/* Logo */}
+
+          {/* LOGO + BRAND */}
           <button
             onClick={() => navigate("/")}
             className="flex items-center gap-3 group"
           >
-            <div className="w-11 h-11 rounded-xl overflow-hidden shadow-lg shadow-teal-500/20 bg-gray-900 flex items-center justify-center">
+            <div className="
+              w-11 h-11 rounded-xl overflow-hidden bg-gray-900 dark:bg-gray-800 
+              flex items-center justify-center shadow-lg shadow-emerald-500/10 dark:shadow-teal-600/20
+            ">
               {logoUrl ? (
                 <img src={logoUrl} alt="Brand Logo" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-white text-md font-bold tracking-wide">
-                  {platformName?.slice(0, 2).toUpperCase()}
+                  {platformName.slice(0, 2).toUpperCase()}
                 </span>
               )}
             </div>
-            <span className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-teal-500 transition">
+
+            <span className="
+              text-xl font-bold tracking-wide transition
+              text-gray-900 dark:text-white
+              group-hover:text-emerald-600 dark:group-hover:text-teal-400
+            ">
               {platformName}
             </span>
           </button>
 
-          {/* Desktop Menu */}
+          {/* ===============================
+                DESKTOP NAV
+          =============================== */}
           <div className="hidden md:flex items-center gap-6">
+
             {groupedLinks.map((group, index) => (
               <div key={group.label} className="relative">
                 {!group.items ? (
@@ -123,22 +150,28 @@ function PublicLayout() {
                       onClick={() =>
                         setOpenDropdown(openDropdown === index ? null : index)
                       }
-                      className="flex items-center gap-1 px-2 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-teal-600 transition"
+                      className="
+                        flex items-center gap-1 px-2 py-2 text-sm font-medium select-none
+                        text-gray-700 dark:text-gray-200 hover:text-emerald-600 dark:hover:text-teal-400
+                        transition rounded-lg
+                      "
                     >
                       {group.label}
-                      {openDropdown === index ? (
-                        <ChevronUp size={14} />
-                      ) : (
-                        <ChevronDown size={14} />
-                      )}
+                      {openDropdown === index ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
 
+                    {/* Premium dropdown */}
                     <div
-                      className={`absolute left-0 mt-2 w-48 rounded-xl border bg-white dark:bg-gray-900 shadow-xl overflow-hidden transition-all duration-200 ${
-                        openDropdown === index
+                      className={`
+                        absolute left-0 mt-2 w-48 rounded-xl overflow-hidden
+                        border border-gray-200 dark:border-gray-800
+                        bg-white/90 dark:bg-gray-900/95 backdrop-blur-lg
+                        shadow-xl shadow-gray-900/10
+                        transition-all duration-200
+                        ${openDropdown === index
                           ? "opacity-100 translate-y-0"
-                          : "opacity-0 translate-y-3 pointer-events-none"
-                      }`}
+                          : "opacity-0 translate-y-3 pointer-events-none"}
+                      `}
                     >
                       {group.items.map((item) => (
                         <NavItem key={item.label} {...item} />
@@ -149,18 +182,28 @@ function PublicLayout() {
               </div>
             ))}
 
-            {/* Auth Controls */}
+            {/* USER AUTH BUTTONS */}
             {!token ? (
               <>
                 <button
                   onClick={() => navigate("/login")}
-                  className="px-4 py-1.5 text-sm font-medium border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                  className="
+                    px-4 py-1.5 rounded-lg border font-medium text-sm
+                    bg-white/60 dark:bg-white/5 
+                    hover:bg-gray-100 dark:hover:bg-gray-800
+                    transition
+                  "
                 >
                   Login
                 </button>
                 <button
                   onClick={() => navigate("/register")}
-                  className="px-4 py-1.5 text-sm font-semibold bg-teal-500 text-white rounded-lg shadow-md hover:bg-teal-600 transition"
+                  className="
+                    px-4 py-1.5 rounded-lg text-sm font-semibold 
+                    text-white bg-emerald-600 dark:bg-teal-600
+                    shadow-md hover:bg-emerald-700 dark:hover:bg-teal-500
+                    transition
+                  "
                 >
                   Get Started
                 </button>
@@ -169,29 +212,44 @@ function PublicLayout() {
               <>
                 <button
                   onClick={() => navigate("/dashboard")}
-                  className="px-4 py-1.5 text-sm font-semibold bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition shadow"
+                  className="
+                    px-4 py-1.5 rounded-lg text-sm font-semibold 
+                    bg-emerald-600 dark:bg-teal-600 text-white 
+                    shadow hover:bg-emerald-700 dark:hover:bg-teal-500
+                  "
                 >
                   Dashboard
                 </button>
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                  className="
+                    px-3 py-1.5 text-sm rounded-lg border
+                    hover:bg-gray-100 dark:hover:bg-gray-800 transition
+                  "
                 >
                   Logout
                 </button>
               </>
             )}
 
-            {/* Theme Toggle */}
+            {/* THEME TOGGLE (premium floating button) */}
             <button
               onClick={toggleTheme}
-              className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-200 dark:bg-gray-800 hover:ring-2 ring-teal-400 transition"
+              className="
+                w-10 h-10 rounded-full flex items-center justify-center
+                bg-gray-200/70 dark:bg-gray-800/80
+                border border-gray-300 dark:border-gray-700
+                hover:ring-2 ring-emerald-400 dark:ring-teal-500
+                transition shadow-sm
+              "
             >
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
           </div>
 
-          {/* Mobile Toggle */}
+          {/* ===============================
+                MOBILE MENU TOGGLE
+          =============================== */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="md:hidden text-2xl text-gray-900 dark:text-white"
@@ -200,9 +258,16 @@ function PublicLayout() {
           </button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* ===============================
+              PREMIUM MOBILE NAV PANEL
+        =============================== */}
         {menuOpen && (
-          <div className="md:hidden p-4 space-y-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950">
+          <div className="
+            md:hidden px-4 py-4 space-y-3 
+            border-t border-gray-200 dark:border-gray-800
+            bg-white/90 dark:bg-gray-950/95 backdrop-blur-xl
+            shadow-inner transition-all
+          ">
             {groupedLinks.map((group, index) => (
               <div key={group.label}>
                 {!group.items ? (
@@ -213,11 +278,12 @@ function PublicLayout() {
                       onClick={() =>
                         setOpenDropdown(openDropdown === index ? null : index)
                       }
-                      className="w-full flex justify-between py-2"
+                      className="w-full flex justify-between py-2 text-sm"
                     >
                       {group.label}
                       {openDropdown === index ? <ChevronUp /> : <ChevronDown />}
                     </button>
+
                     {openDropdown === index && (
                       <div className="ml-4 space-y-1">
                         {group.items.map((item) => (
@@ -238,6 +304,7 @@ function PublicLayout() {
             ) : (
               <>
                 <NavItem to="/dashboard" label="Dashboard" />
+
                 <button
                   onClick={handleLogout}
                   className="block w-full px-3 py-2 text-left text-sm text-red-500 rounded-md"
@@ -247,9 +314,14 @@ function PublicLayout() {
               </>
             )}
 
+            {/* Mobile Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="w-full py-2 rounded-lg bg-gray-200 dark:bg-gray-800 transition"
+              className="
+                w-full py-2 rounded-lg
+                bg-gray-200 dark:bg-gray-800
+                hover:ring-2 ring-emerald-400 dark:ring-teal-500 transition
+              "
             >
               Toggle Theme
             </button>
@@ -257,7 +329,7 @@ function PublicLayout() {
         )}
       </nav>
 
-      {/* Page Content */}
+      {/* CONTENT */}
       <main className="flex-grow animate-fade-in">
         <Outlet />
       </main>
@@ -267,5 +339,3 @@ function PublicLayout() {
     </div>
   );
 }
-
-export default PublicLayout;

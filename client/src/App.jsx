@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useEffect, useState } from "react";
 import {
   BrowserRouter as Router,
@@ -5,24 +6,35 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+
 import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { SystemSettingsProvider } from "./context/SystemSettingsContext";
+
 import ProtectedRoute from "./components/ProtectedRoute";
+import { ROLES } from "./config/roles";
+
+import DemotionModal from "./components/DemotionModal";
+import api from "./utils/api";
 import "./App.css";
 
-import { ROLES } from "./config/roles";
-import DemotionModal from "./components/DemotionModal";
-
 // Layouts
+import PublicLayout from "./layouts/PublicLayout";
 import UserLayout from "./layouts/UserLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import CeoLayout from "./layouts/CeoLayout";
 import InstructorLayout from "./layouts/InstructorLayout";
 import ModeratorLayout from "./layouts/ModeratorLayout";
-import PublicLayout from "./layouts/PublicLayout"; // 🆕
 
-// Shared Pages
+// Auth Pages
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import OtpVerify from "./pages/OtpVerify";
+import ResetPassword from "./pages/ResetPassword";
+
+// Public Pages
 import Home from "./pages/Home";
 import Explore from "./pages/Explore";
 import Announcements from "./pages/Announcements";
@@ -31,8 +43,6 @@ import Contact from "./pages/Contact";
 import Support from "./pages/Support";
 import PrivatPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
 
 // Student Pages
 import Dashboard from "./pages/Dashboard";
@@ -85,15 +95,16 @@ import ReportedIssues from "./pages/moderator/ReportedIssues";
 import AnnouncementsView from "./pages/moderator/AnnouncementsView";
 import SuspiciousActivity from "./pages/moderator/SuspiciousActivity";
 
-import api from "./utils/api";
-
-// Wrapper to run demotion check after login
+// --------------------------------------------
+// Wrapper to check demotion after login
+// --------------------------------------------
 function AppWrapper() {
   const { isAuthenticated } = useAuth();
   const [demotionReq, setDemotionReq] = useState(null);
 
   const checkDemotion = async () => {
     if (!isAuthenticated) return;
+
     try {
       const res = await api.get("/role-change/mine");
       if (
@@ -118,7 +129,7 @@ function AppWrapper() {
   return (
     <>
       <Routes>
-        {/* Public + marketing layout */}
+        {/* Public marketing pages */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/explore" element={<Explore />} />
@@ -128,17 +139,19 @@ function AppWrapper() {
           <Route path="/support" element={<Support />} />
           <Route path="/privacy-policy" element={<PrivatPolicy />} />
           <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login />} />
         </Route>
 
-        {/* Student layout (only when logged in as STUDENT) */}
+        {/* AUTH PAGES — FULLSCREEN (NO LAYOUT) */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/otp" element={<OtpVerify />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+
+        {/* STUDENT */}
         <Route
           element={
-            <ProtectedRoute
-              allowRoles={[ROLES.STUDENT]}
-              element={<UserLayout />}
-            />
+            <ProtectedRoute allowRoles={[ROLES.STUDENT]} element={<UserLayout />} />
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
@@ -155,9 +168,7 @@ function AppWrapper() {
         {/* CEO */}
         <Route
           path="/ceo"
-          element={
-            <ProtectedRoute allowRoles={[ROLES.CEO]} element={<CeoLayout />} />
-          }
+          element={<ProtectedRoute allowRoles={[ROLES.CEO]} element={<CeoLayout />} />}
         >
           <Route index element={<CeoDashboard />} />
           <Route path="roles" element={<ManageRoles />} />
@@ -170,12 +181,10 @@ function AppWrapper() {
           <Route path="settings" element={<SystemSettings />} />
         </Route>
 
-        {/* Admin */}
+        {/* ADMIN */}
         <Route
           path="/admin"
-          element={
-            <ProtectedRoute allowRoles={[ROLES.ADMIN]} element={<AdminLayout />} />
-          }
+          element={<ProtectedRoute allowRoles={[ROLES.ADMIN]} element={<AdminLayout />} />}
         >
           <Route index element={<AdminDashboard />} />
           <Route path="profile-requests" element={<ProfileRequests />} />
@@ -188,7 +197,7 @@ function AppWrapper() {
           <Route path="announcements" element={<AnnouncementsManager />} />
         </Route>
 
-        {/* Instructor */}
+        {/* INSTRUCTOR */}
         <Route
           path="/instructor"
           element={
@@ -209,7 +218,7 @@ function AppWrapper() {
           <Route path="promotion" element={<PromotionProgress />} />
         </Route>
 
-        {/* Moderator */}
+        {/* MODERATOR */}
         <Route
           path="/moderator"
           element={
@@ -241,12 +250,27 @@ function AppWrapper() {
   );
 }
 
+// --------------------------------------------
+// MAIN APP WRAPPER
+// --------------------------------------------
 export default function App() {
   return (
     <ThemeProvider>
       <Router>
         <AuthProvider>
           <SystemSettingsProvider>
+             {/* 🔥 GLOBAL TOASTER — REQUIRED FOR ALL TOASTS */}
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 2500,
+                  style: {
+                    background: "#1f2937",
+                    color: "#fff",
+                    border: "1px solid #374151",
+                  },
+                }}
+              />
             <AppWrapper />
           </SystemSettingsProvider>
         </AuthProvider>
