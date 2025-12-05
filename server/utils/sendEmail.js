@@ -7,7 +7,7 @@ export default async function sendEmail({ to, subject, text, html }) {
     return { success: false, error: "Email not configured" };
   }
 
-  if (!process.env.MAIL_FROM) {
+  if (!process.env.CONTACT_FROM) {
     console.warn("❌ MAIL_FROM missing — email not sent");
     return { success: false, error: "Sending address not configured" };
   }
@@ -16,7 +16,7 @@ export default async function sendEmail({ to, subject, text, html }) {
 
   const msg = {
     to,
-    from: process.env.MAIL_FROM, // MUST be verified in SendGrid
+    from: process.env.CONTACT_FROM, // MUST be verified in SendGrid
     subject,
     text: text || undefined,
     html: html || undefined,
