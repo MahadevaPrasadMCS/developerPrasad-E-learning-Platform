@@ -4,6 +4,7 @@ import { Code, Target, Rocket } from "lucide-react";
 function About() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white dark:from-gray-900 dark:to-gray-950 py-16 px-6">
+      <title>About</title>
       <div className="max-w-5xl mx-auto text-center">
         <h1 className="text-4xl font-extrabold text-teal-600 dark:text-teal-400 mb-6">
           About YouLearnHub
