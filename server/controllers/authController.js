@@ -1,9 +1,12 @@
 // server/controllers/authController.js
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
+
 import User from "../models/User.js";
 import SystemLog from "../models/SystemLog.js";
 import Otp from "../models/Otp.js";
+import ResetToken from "../models/ResetToken.js";
 import sendEmail from "../utils/sendEmail.js";
 
 const normalizeEmail = (email) => String(email).toLowerCase().trim();
@@ -37,12 +40,12 @@ export const registerUser = async (req, res) => {
 
     await SystemLog.create({
       actor: user._id,
-      action: "PROFILE_UPDATE", // reuse sensible action or add REGISTER to log actions if needed
+      action: "PROFILE_UPDATE",
       target: user._id,
       details: { email: user.email, note: "New registration" },
     });
 
-    // Create a verification OTP (optional — good UX to verify email)
+    // Create verification OTP (optional)
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
     await Otp.deleteMany({ email: normalizedEmail, purpose: "VERIFY_ACCOUNT" });
@@ -157,11 +160,11 @@ export const sendOTP = async (req, res) => {
 
     const normalizedEmail = normalizeEmail(email);
 
-    // Simple rate-limiting guard (check existing recent OTPs)
+    // rate-limiting guard (1 minute cooldown)
     const existing = await Otp.findOne({
       email: normalizedEmail,
       purpose,
-      createdAt: { $gt: new Date(Date.now() - 60 * 1000) }, // 1 minute cooldown
+      createdAt: { $gt: new Date(Date.now() - 60 * 1000) },
     });
     if (existing) {
       return res
@@ -211,13 +214,13 @@ export const sendOTP = async (req, res) => {
 // POST /api/auth/verify-otp
 // body: { otp, email? }
 // If OTP found we remove it and return success
+// For RESET_PASSWORD purpose, we also issue a short-lived reset token (Flow A)
 // -----------------------------
 export const verifyOTP = async (req, res) => {
   try {
     const { otp, email } = req.body;
     if (!otp) return res.status(400).json({ message: "OTP required" });
 
-    // prefer lookup by both email+otp if email provided, otherwise by otp only
     const query = email
       ? { otp, email: normalizeEmail(email) }
       : { otp };
@@ -239,6 +242,28 @@ export const verifyOTP = async (req, res) => {
       details: { email: record.email, note: "OTP verified", purpose: record.purpose },
     });
 
+    // If this OTP was for password reset, create a reset token and return it
+    if (record.purpose === "RESET_PASSWORD") {
+      // remove any previous tokens for this email
+      await ResetToken.deleteMany({ email: record.email });
+
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      await ResetToken.create({
+        email: record.email,
+        token: resetToken,
+        expiresAt,
+      });
+
+      return res.json({
+        message: "OTP verified successfully",
+        resetToken, // frontend will navigate to reset page with token
+        expiresAt,
+      });
+    }
+
+    // Normal verification (e.g. account verify)
     return res.json({ message: "OTP verified successfully" });
   } catch (err) {
     console.error("Verify OTP Error:", err);
@@ -254,13 +279,28 @@ export const verifyOTP = async (req, res) => {
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: "Email required" });
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        exists: false,
+        message: "Email required",
+      });
+    }
 
     const normalizedEmail = normalizeEmail(email);
     const user = await User.findOne({ email: normalizedEmail });
-    if (!user) return res.status(400).json({ message: "No user found" });
 
-    // reuse sendOTP with purpose RESET_PASSWORD
+    // If no user → tell frontend accurately (Avoiding false “OTP sent”)
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        exists: false,
+        message: "No user found with this email",
+      });
+    }
+
+    // ─────────────── send OTP ───────────────
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
     await Otp.deleteMany({ email: normalizedEmail, purpose: "RESET_PASSWORD" });
@@ -269,14 +309,16 @@ export const forgotPassword = async (req, res) => {
       email: normalizedEmail,
       otp: otpCode,
       purpose: "RESET_PASSWORD",
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 min
     });
 
     sendEmail({
       to: normalizedEmail,
       subject: "YouLearnHub — Password Reset OTP",
-      text: `Your password reset OTP is ${otpCode} (valid for 5 minutes).`,
-    }).catch((err) => console.warn("Password reset email failed:", err?.message));
+      text: `Your password reset OTP is ${otpCode}. It expires in 5 minutes.`,
+    }).catch((err) =>
+      console.warn("Password reset email failed:", err?.message)
+    );
 
     await SystemLog.create({
       actor: user._id,
@@ -284,36 +326,39 @@ export const forgotPassword = async (req, res) => {
       details: { email: normalizedEmail, note: "Password reset OTP issued" },
     });
 
-    return res.json({ message: "OTP sent to your email" });
+    return res.json({
+      success: true,
+      exists: true,
+      message: "OTP sent to your email",
+    });
   } catch (err) {
     console.error("Forgot Password Error:", err);
-    res.status(500).json({ message: "Failed to process forgot password" });
+    res.status(500).json({
+      success: false,
+      exists: null,
+      message: "Failed to process forgot password",
+    });
   }
 };
 
+
 // -----------------------------
-// RESET PASSWORD
+// RESET PASSWORD (Flow A)
 // POST /api/auth/reset-password
-// body: { email, otp, password }
+// body: { token, password }
 // -----------------------------
 export const resetPassword = async (req, res) => {
   try {
-    const { email, otp, password } = req.body;
-    if (!email || !otp || !password)
-      return res.status(400).json({ message: "Email, OTP and password required" });
+    const { token, password } = req.body;
+    if (!token || !password)
+      return res.status(400).json({ message: "Token and password required" });
 
-    const normalizedEmail = normalizeEmail(email);
-    const otpDoc = await Otp.findOne({
-      email: normalizedEmail,
-      otp,
-      purpose: "RESET_PASSWORD",
-    });
+    const tokenDoc = await ResetToken.findOne({ token });
+    if (!tokenDoc) return res.status(400).json({ message: "Reset link expired or invalid" });
 
-    if (!otpDoc) return res.status(400).json({ message: "Invalid OTP" });
-
-    if (otpDoc.expiresAt < new Date()) {
-      await Otp.deleteOne({ _id: otpDoc._id });
-      return res.status(400).json({ message: "OTP expired" });
+    if (tokenDoc.expiresAt < new Date()) {
+      await ResetToken.deleteOne({ _id: tokenDoc._id });
+      return res.status(400).json({ message: "Reset token expired" });
     }
 
     // Basic password validation: 8-15 alnum + special + uppercase (as frontend)
@@ -325,24 +370,28 @@ export const resetPassword = async (req, res) => {
       });
     }
 
+    const normalizedEmail = normalizeEmail(tokenDoc.email);
     const hashed = await bcrypt.hash(password, 12);
 
     const updated = await User.findOneAndUpdate(
       { email: normalizedEmail },
-      { password: hashed, sessionVersion: (await User.countDocuments({ _id: { $exists: true } })) && 0 }, // keep sessionVersion or increment if you want to force logout
+      { password: hashed },
       { new: true }
     );
 
-    await Otp.deleteOne({ _id: otpDoc._id });
-
-    // Optionally bump sessionVersion to invalidate old tokens
-    if (updated) {
-      updated.sessionVersion = (updated.sessionVersion || 0) + 1;
-      await updated.save();
+    if (!updated) {
+      return res.status(404).json({ message: "User not found" });
     }
 
+    // delete all reset tokens for this email
+    await ResetToken.deleteMany({ email: normalizedEmail });
+
+    // bump sessionVersion to invalidate other sessions
+    updated.sessionVersion = (updated.sessionVersion || 0) + 1;
+    await updated.save();
+
     await SystemLog.create({
-      actor: updated?._id || null,
+      actor: updated._id,
       action: "SECURITY_ALERT",
       details: { email: normalizedEmail, note: "Password reset completed" },
     });
@@ -356,12 +405,7 @@ export const resetPassword = async (req, res) => {
 
 // -----------------------------
 // EXISTING getMe / updateProfile / updateAvatar
-// Keep these as you supplied earlier
 // -----------------------------
-/* ==============================
-   GET AUTHENTICATED USER PROFILE
-   GET /api/auth/me
-=================================*/
 export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
@@ -388,10 +432,6 @@ export const getMe = async (req, res) => {
   }
 };
 
-/* ==============================
-   UPDATE PROFILE (name + bio)
-   PATCH /api/auth/update
-=================================*/
 export const updateProfile = async (req, res) => {
   try {
     const { name, bio } = req.body;
@@ -424,10 +464,6 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-/* ==============================
-   UPDATE AVATAR ONLY
-   PATCH /api/auth/update-avatar
-=================================*/
 export const updateAvatar = async (req, res) => {
   try {
     const { avatarUrl } = req.body;
