@@ -14,28 +14,32 @@ router.post("/", async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.CONTACT_EMAIL,
-        pass: process.env.CONTACT_EMAIL_PASSWORD,
+        user: process.env.CONTACT_FROM,
+        pass: process.env.MAIL_PASS,
       },
     });
 
     await transporter.sendMail({
-      from: `"YouLearnHub Contact" <${process.env.CONTACT_EMAIL}>`,
-      to: process.env.CONTACT_RECEIVER_EMAIL || process.env.CONTACT_EMAIL,
+      from: `"YouLearnHub Contact" <${process.env.CONTACT_FROM}>`,
+      to: process.env.CONTACT_RECIEVER,
       replyTo: email,
       subject: `📩 Contact Message from ${name}`,
       html: `
-        <p><b>Name:</b> ${name}</p>
-        <p><b>Email:</b> ${email}</p>
-        <p><b>Message:</b></p>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Message:</strong></p>
         <p>${message}</p>
       `,
     });
 
-    res.status(200).json({ message: "Message sent successfully" });
+    res.status(200).json({
+      message: "✅ Message sent successfully",
+    });
   } catch (err) {
-    console.error("Contact error:", err);
-    res.status(500).json({ message: "Failed to send message" });
+    console.error("Contact mail error:", err);
+    res.status(500).json({
+      message: "❌ Failed to send message",
+    });
   }
 });
 
