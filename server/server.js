@@ -80,6 +80,7 @@ await connectDB();
 // Public Auth Routes
 import authRoutes from "./routes/authRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
+import announcements from "./routes/announcementRoutes.js";
 
 // CEO Governance Routes
 import roleRoutes from "./routes/roleRoutes.js";
@@ -106,6 +107,7 @@ app.get("/api/system/settings", getSystemSettings);
 // Public
 app.use("/api/auth", authRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/announcements", announcements);
 
 // ⛔ Everything below requires valid JWT
 app.use(authMiddleware);
