@@ -80,7 +80,7 @@ await connectDB();
 // Public Auth Routes
 import authRoutes from "./routes/authRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
-import announcements from "./routes/announcementRoutes.js";
+import announcements from "./routes/announcementsRoutes.js";
 
 // CEO Governance Routes
 import roleRoutes from "./routes/roleRoutes.js";
