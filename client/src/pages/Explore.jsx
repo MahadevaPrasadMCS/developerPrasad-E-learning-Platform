@@ -24,11 +24,6 @@ function Explore() {
         setTutorials(tut.data || []);
         setUpcomingQuizzes(quiz.data || []);
       } catch (err) {
-        console.warn("⚠️ Using mock data for Explore page (API fallback).");
-        setAnnouncements([
-          { _id: 1, title: "New React Quiz Coming Soon!", date: "Nov 10, 2025" },
-          { _id: 2, title: "Top Learners of the Month Announced 🎉", date: "Nov 5, 2025" },
-        ]);
         setTutorials([
           {
             _id: 1,
