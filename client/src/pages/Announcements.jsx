@@ -12,7 +12,7 @@ function Announcements() {
   useEffect(() => {
     const fetchAnnouncements = async () => {
       try {
-        const res = await api.get("/announcements");
+        const res = await api.get("/announcements/public");
         setAnnouncements(res.data || []);
       } catch (err) {
         console.error("Failed to fetch announcements:", err);
