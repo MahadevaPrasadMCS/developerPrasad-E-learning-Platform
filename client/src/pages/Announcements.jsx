@@ -1,31 +1,45 @@
 import React, { useEffect, useState } from "react";
 import api from "../utils/api";
+import { toast } from "react-hot-toast";
 
 function Announcements() {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 🔹 Fetch Announcements
+  // 🔹 Fetch Announcements (PUBLIC)
   useEffect(() => {
     const fetchAnnouncements = async () => {
       try {
         const res = await api.get("/announcements/public");
-        setAnnouncements(res.data || []);
+        const data = res.data || [];
+
+        setAnnouncements(data);
+
+        if (data.length === 0) {
+          toast("No announcements available yet.", {
+            icon: "📭",
+          });
+        }
       } catch (err) {
         console.error("Failed to fetch announcements:", err);
 
-        // Do NOT trigger auth handling on public page
+        // 🚫 Ignore auth errors on public page
         if (err.response?.status === 401) return;
 
         setError("Failed to load announcements. Please try again later.");
-      }
-      finally {
+
+        toast.error(
+          err.response?.data?.message ||
+            "Failed to load announcements. Please try again later."
+        );
+      } finally {
         setLoading(false);
       }
     };
+
     fetchAnnouncements();
-  }, [handleAuthError]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-12 px-6 transition-colors duration-300">
