@@ -1,13 +1,10 @@
+// server/routes/contactRoutes.js
 import express from "express";
 import sendEmail from "../utils/sendEmail.js";
 import SystemLog from "../models/SystemLog.js";
 
 const router = express.Router();
 
-/**
- * POST /api/contact
- * body: { name, email, message }
- */
 router.post("/", async (req, res) => {
   try {
     const { name, email, message } = req.body;
@@ -23,55 +20,51 @@ router.post("/", async (req, res) => {
     }
 
     const cleanName = name.trim();
-    const cleanEmail = String(email).toLowerCase().trim();
+    const cleanEmail = email.toLowerCase().trim();
     const cleanMessage = message.trim();
 
     // -----------------------------
-    // Log message (important)
+    // Audit Log (SAFE)
     // -----------------------------
-    await SystemLog.create({
-      actor: null,
-      action: "CONTACT_MESSAGE",
-      details: {
-        fromName: cleanName,
-        fromEmail: cleanEmail,
-        message: cleanMessage.slice(0, 500), // prevent log abuse
-      },
-      ip: req.ip,
-    });
+    try {
+      await SystemLog.create({
+        actor: null,
+        actorRole: "system",
+        action: "SECURITY_ALERT", // ✅ valid enum
+        details: {
+          type: "CONTACT_MESSAGE",
+          fromName: cleanName,
+          fromEmail: cleanEmail,
+          preview: cleanMessage.slice(0, 200),
+        },
+        ip: req.ip,
+      });
+    } catch (logErr) {
+      // Never allow audit logging to break API
+      console.warn("SystemLog failed:", logErr.message);
+    }
 
     // -----------------------------
-    // Send email (NON-BLOCKING)
+    // Email (NON-BLOCKING)
     // -----------------------------
     sendEmail({
       to: process.env.CONTACT_RECIEVER,
       subject: `📩 Contact Message from ${cleanName}`,
-      text: `
-New contact message received
-
-Name: ${cleanName}
-Email: ${cleanEmail}
-
-Message:
-${cleanMessage}
-      `,
-    }).catch((err) => {
-      // NEVER crash request because of email
-      console.warn("Contact email failed:", err?.message);
-    });
+      text: `Name: ${cleanName}\nEmail: ${cleanEmail}\n\n${cleanMessage}`,
+    }).catch((err) =>
+      console.warn("Contact email failed:", err.message)
+    );
 
     // -----------------------------
-    // Success response (always)
+    // Response
     // -----------------------------
-    return res.status(200).json({
+    return res.json({
       success: true,
       message: "Message received successfully. We’ll get back to you soon.",
     });
 
   } catch (err) {
-    console.error("Contact Route Error:", err);
-
-    // only real server failures come here
+    console.error("Contact Route Fatal Error:", err);
     return res.status(500).json({
       success: false,
       message: "Failed to process contact request",
