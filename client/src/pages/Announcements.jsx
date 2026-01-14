@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../utils/api";
-import { useAuth } from "../context/AuthContext";
 
 function Announcements() {
-  const { handleAuthError } = useAuth();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -16,9 +14,13 @@ function Announcements() {
         setAnnouncements(res.data || []);
       } catch (err) {
         console.error("Failed to fetch announcements:", err);
+
+        // Do NOT trigger auth handling on public page
+        if (err.response?.status === 401) return;
+
         setError("Failed to load announcements. Please try again later.");
-        handleAuthError(err.response?.status, err.response?.data?.message);
-      } finally {
+      }
+      finally {
         setLoading(false);
       }
     };
