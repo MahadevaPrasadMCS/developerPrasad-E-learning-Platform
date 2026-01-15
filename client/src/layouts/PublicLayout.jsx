@@ -50,6 +50,7 @@ export default function PublicLayout() {
       items: [
         { to: "/explore", label: "Explore" },
         { to: "/announcements", label: "Announcements" },
+        { to: "/faq", label: "FAQ" },
       ],
     },
     {

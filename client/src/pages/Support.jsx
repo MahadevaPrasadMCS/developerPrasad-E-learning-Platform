@@ -35,6 +35,14 @@ function Support() {
             <p className="text-gray-600 dark:text-gray-400 text-sm">
               Learn how coins work, how promotions happen, and how to use
               quizzes, tutorials, and resources.
+              visit our {" "}
+              <Link
+                to="/faq"
+                className="text-teal-500 font-medium hover:underline"
+              >
+                FAQ's Page
+              </Link>{" "}
+              for more information.
             </p>
           </div>
 

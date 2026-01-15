@@ -41,6 +41,7 @@ import Announcements from "./pages/Announcements";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Support from "./pages/Support";
+import FAQ from "./pages/FAQ";
 import PrivatPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
 
@@ -137,6 +138,7 @@ function AppWrapper() {
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/faq" element={<FAQ />} />
           <Route path="/privacy-policy" element={<PrivatPolicy />} />
           <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
         </Route>
