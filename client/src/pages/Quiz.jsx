@@ -599,7 +599,7 @@ function Quiz() {
     registered,
     submitted,
     invalidated,
-    activeQuiz,
+    activeQuiz?._id,
     index,
     countdown,
     paused,
