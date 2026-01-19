@@ -7,7 +7,7 @@ export async function connectDB() {
   try {
     console.log("⏳ Connecting to MongoDB...");
 
-    const conn = await mongoose.connect(process.env.MONGO_URI || "mongodb+srv://mahadevaprasadcs23_db_user:Coder%402026@cluster0.zz0shxl.mongodb.net/?appName=Cluster0", {
+    const conn = await mongoose.connect(process.env.MONGO_URI {
       useNewUrlParser: true,
       useUnifiedTopology: true,
       maxPoolSize: 10,
