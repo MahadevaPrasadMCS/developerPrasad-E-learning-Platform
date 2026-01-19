@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -103,29 +103,28 @@ function AppWrapper() {
   const { isAuthenticated } = useAuth();
   const [demotionReq, setDemotionReq] = useState(null);
 
-  const checkDemotion = async () => {
-    if (!isAuthenticated) return;
+const checkDemotion = useCallback(async () => {
+  if (!isAuthenticated) return;
 
-    try {
-      const res = await api.get("/role-change/mine");
-      if (
-        res?.data?._id &&
-        ["PENDING_USER_REVIEW", "USER_DISPUTED", "USER_ACCEPTED"].includes(
-          res.data.status
-        )
-      ) {
-        setDemotionReq(res.data);
-      } else {
-        setDemotionReq(null);
-      }
-    } catch {
+  try {
+    const res = await api.get("/role-change/mine");
+    if (
+      res?.data?._id &&
+      ["PENDING_USER_REVIEW", "USER_DISPUTED", "USER_ACCEPTED"].includes(
+        res.data.status
+      )
+    ) {
+      setDemotionReq(res.data);
+    } else {
       setDemotionReq(null);
     }
-  };
-
+  } catch {
+    setDemotionReq(null);
+  }
+}, [isAuthenticated]);
   useEffect(() => {
     checkDemotion();
-  }, [isAuthenticated]);
+  }, [checkDemotion]);
 
   return (
     <>
