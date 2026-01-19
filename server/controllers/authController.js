@@ -24,53 +24,71 @@ export const registerUser = async (req, res) => {
     }
 
     const normalizedEmail = normalizeEmail(email);
-    const existingUser = await User.findOne({ email: normalizedEmail });
 
+    // 🔐 STEP 1: Ensure email OTP was verified FIRST
+    const verifiedOtp = await Otp.findOne({
+      email: normalizedEmail,
+      purpose: "REGISTER",
+      verified: true,
+    });
+
+    if (!verifiedOtp) {
+      return res.status(400).json({
+        message: "Email not verified. Please verify OTP before registering.",
+      });
+    }
+
+    // 🔍 STEP 2: Check if user already exists
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({ message: "Email already registered" });
     }
 
+    // 🔐 STEP 3: Validate password (same rules as frontend)
+    const strongPasswordRegex =
+      /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,15}$/;
+
+    if (!strongPasswordRegex.test(password)) {
+      return res.status(400).json({
+        message:
+          "Password must be 8–15 characters and include uppercase, number, and special character",
+      });
+    }
+
+    // 🔒 STEP 4: Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // 👤 STEP 5: Create user
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
       password: hashedPassword,
     });
 
+    // 🧹 STEP 6: Cleanup OTPs (prevent reuse)
+    await Otp.deleteMany({
+      email: normalizedEmail,
+      purpose: "REGISTER",
+    });
+
+    // 📝 STEP 7: Log registration
     await SystemLog.create({
       actor: user._id,
       action: "PROFILE_UPDATE",
       target: user._id,
-      details: { email: user.email, note: "New registration" },
+      details: { email: user.email, note: "New registration (email verified)" },
+      ip: req.ip,
     });
-
-    // Create verification OTP (optional)
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-    await Otp.deleteMany({ email: normalizedEmail, purpose: "VERIFY_ACCOUNT" });
-
-    await Otp.create({
-      email: normalizedEmail,
-      otp: otpCode,
-      purpose: "VERIFY_ACCOUNT",
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-    });
-
-    // Send OTP email (non-blocking)
-    sendEmail({
-      to: normalizedEmail,
-      subject: "Verify your YouLearnHub account",
-      text: `Welcome ${user.name}! Use this OTP to verify your account: ${otpCode} (valid for 5 minutes)`,
-    }).catch((err) => console.warn("OTP email failed:", err?.message));
 
     return res.status(201).json({
       success: true,
-      message: "Account created successfully. OTP sent to email for verification.",
+      message: "Account created successfully",
     });
   } catch (err) {
     console.error("Register Error:", err);
-    res.status(500).json({ message: "Server error during registration" });
+    return res.status(500).json({
+      message: "Server error during registration",
+    });
   }
 };
 
@@ -151,125 +169,193 @@ export const loginUser = async (req, res) => {
 // SEND OTP (generic)
 // POST /api/auth/send-otp
 // body: { email, purpose }
-// purposes: VERIFY_ACCOUNT | RESET_PASSWORD
 // -----------------------------
-export const sendOTP = async (req, res) => {
-  try {
-    const { email, purpose = "VERIFY_ACCOUNT" } = req.body;
-    if (!email) return res.status(400).json({ message: "Email required" });
+  export const sendOTP = async (req, res) => {
+    try {
+      const { email, purpose = "REGISTER" } = req.body;
 
-    const normalizedEmail = normalizeEmail(email);
+      if (!email) {
+        return res.status(400).json({ message: "Email required" });
+      }
 
-    // rate-limiting guard (1 minute cooldown)
-    const existing = await Otp.findOne({
-      email: normalizedEmail,
-      purpose,
-      createdAt: { $gt: new Date(Date.now() - 60 * 1000) },
-    });
-    if (existing) {
-      return res
-        .status(429)
-        .json({ message: "Please wait before requesting another OTP" });
+      const normalizedEmail = normalizeEmail(email);
+
+      // 🚫 REGISTER: block if user already exists
+      if (purpose === "REGISTER") {
+        const userExists = await User.findOne({ email: normalizedEmail });
+        if (userExists) {
+          return res.status(400).json({
+            message: "Email already registered",
+          });
+        }
+      }
+
+      // ⏱ Cooldown: 1 OTP / minute
+      const recentOtp = await Otp.findOne({
+        email: normalizedEmail,
+        purpose,
+        createdAt: { $gt: new Date(Date.now() - 60 * 1000) },
+      });
+
+      if (recentOtp) {
+        return res.status(429).json({
+          message: "Please wait before requesting another OTP",
+        });
+      }
+
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // remove old OTPs
+      await Otp.deleteMany({ email: normalizedEmail, purpose });
+
+      await Otp.create({
+        email: normalizedEmail,
+        otp: otpCode,
+        purpose,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      });
+
+      sendEmail({
+        to: normalizedEmail,
+        subject:
+          purpose === "RESET_PASSWORD"
+            ? "YouLearnHub — Password Reset OTP"
+            : "YouLearnHub — Email Verification OTP",
+        text:
+          purpose === "RESET_PASSWORD"
+            ? `Your password reset OTP is ${otpCode}. It expires in 5 minutes.`
+            : `Your email verification OTP is ${otpCode}. It expires in 5 minutes.`,
+      }).catch((err) =>
+        console.warn("OTP email failed:", err?.message)
+      );
+
+      await SystemLog.create({
+        actor: null,
+        action: "SECURITY_ALERT",
+        details: {
+          email: normalizedEmail,
+          purpose,
+          note: "OTP issued",
+        },
+        ip: req.ip,
+      });
+
+      return res.json({ message: "OTP sent successfully" });
+    } catch (err) {
+      console.error("Send OTP Error:", err);
+      return res.status(500).json({ message: "Failed to send OTP" });
     }
+  };
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    await Otp.deleteMany({ email: normalizedEmail, purpose });
-
-    await Otp.create({
-      email: normalizedEmail,
-      otp: otpCode,
-      purpose,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
-    });
-
-    // Send via email (non-blocking)
-    sendEmail({
-      to: normalizedEmail,
-      subject:
-        purpose === "RESET_PASSWORD"
-          ? "YouLearnHub — Password Reset OTP"
-          : "YouLearnHub — Account Verification OTP",
-      text:
-        purpose === "RESET_PASSWORD"
-          ? `Your password reset OTP: ${otpCode} (valid 5 minutes)`
-          : `Your verification OTP: ${otpCode} (valid 5 minutes)`,
-    }).catch((err) => console.warn("OTP send failed:", err?.message));
-
-    await SystemLog.create({
-      actor: null,
-      action: "SECURITY_ALERT",
-      details: { email: normalizedEmail, purpose, note: "OTP issued" },
-    });
-
-    return res.json({ message: "OTP sent successfully" });
-  } catch (err) {
-    console.error("Send OTP Error:", err);
-    res.status(500).json({ message: "Failed to send OTP" });
-  }
-};
-
+// -----------------------------
 // -----------------------------
 // VERIFY OTP
 // POST /api/auth/verify-otp
-// body: { otp, email? }
-// If OTP found we remove it and return success
-// For RESET_PASSWORD purpose, we also issue a short-lived reset token (Flow A)
+// body: { otp, email, purpose }
 // -----------------------------
-export const verifyOTP = async (req, res) => {
-  try {
-    const { otp, email } = req.body;
-    if (!otp) return res.status(400).json({ message: "OTP required" });
+  export const verifyOTP = async (req, res) => {
+    try {
+      const { otp, email, purpose = "REGISTER" } = req.body;
 
-    const query = email
-      ? { otp, email: normalizeEmail(email) }
-      : { otp };
+      if (!otp || !email) {
+        return res.status(400).json({ message: "OTP and email required" });
+      }
 
-    const record = await Otp.findOne(query);
-    if (!record) return res.status(400).json({ message: "Invalid OTP" });
+      const normalizedEmail = normalizeEmail(email);
 
-    if (record.expiresAt < new Date()) {
-      await Otp.deleteOne({ _id: record._id });
-      return res.status(400).json({ message: "OTP expired" });
-    }
+      const record = await Otp.findOne({
+        email: normalizedEmail,
+        purpose,
+      });
 
-    // Delete OTP after successful verify
-    await Otp.deleteOne({ _id: record._id });
+      if (!record) {
+        return res.status(400).json({ message: "Invalid OTP" });
+      }
 
-    await SystemLog.create({
-      actor: null,
-      action: "SECURITY_ALERT",
-      details: { email: record.email, note: "OTP verified", purpose: record.purpose },
-    });
+      // ⏳ Expired
+      if (record.expiresAt < new Date()) {
+        await Otp.deleteOne({ _id: record._id });
+        return res.status(400).json({ message: "OTP expired" });
+      }
 
-    // If this OTP was for password reset, create a reset token and return it
-    if (record.purpose === "RESET_PASSWORD") {
-      // remove any previous tokens for this email
-      await ResetToken.deleteMany({ email: record.email });
+      // 🔐 Attempt limit
+      if (record.attempts >= 5) {
+        await Otp.deleteOne({ _id: record._id });
+        return res.status(429).json({
+          message: "Too many failed attempts. Request a new OTP.",
+        });
+      }
 
-      const resetToken = crypto.randomBytes(32).toString("hex");
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      // ❌ Wrong OTP
+      if (record.otp !== otp) {
+        record.attempts += 1;
+        await record.save();
 
-      await ResetToken.create({
-        email: record.email,
-        token: resetToken,
-        expiresAt,
+        return res.status(400).json({
+          message: "Invalid OTP",
+          attemptsLeft: Math.max(0, 5 - record.attempts),
+        });
+      }
+
+      // ✅ Correct OTP
+      if (record.purpose === "RESET_PASSWORD") {
+        // consume OTP
+        await Otp.deleteOne({ _id: record._id });
+
+        // invalidate old reset tokens
+        await ResetToken.deleteMany({ email: normalizedEmail });
+
+        const resetToken = crypto.randomBytes(32).toString("hex");
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+        await ResetToken.create({
+          email: normalizedEmail,
+          token: resetToken,
+          expiresAt,
+        });
+
+        await SystemLog.create({
+          actor: null,
+          action: "SECURITY_ALERT",
+          details: {
+            email: normalizedEmail,
+            purpose,
+            note: "Password reset OTP verified",
+          },
+          ip: req.ip,
+        });
+
+        return res.json({
+          message: "OTP verified successfully",
+          resetToken,
+          expiresAt,
+        });
+      }
+
+      // ✅ REGISTER OTP → mark verified (DO NOT delete)
+      record.verified = true;
+      await record.save();
+
+      await SystemLog.create({
+        actor: null,
+        action: "SECURITY_ALERT",
+        details: {
+          email: normalizedEmail,
+          purpose,
+          note: "Registration OTP verified",
+        },
+        ip: req.ip,
       });
 
       return res.json({
-        message: "OTP verified successfully",
-        resetToken, // frontend will navigate to reset page with token
-        expiresAt,
+        message: "Email verified successfully",
       });
+    } catch (err) {
+      console.error("Verify OTP Error:", err);
+      return res.status(500).json({ message: "OTP verification failed" });
     }
-
-    // Normal verification (e.g. account verify)
-    return res.json({ message: "OTP verified successfully" });
-  } catch (err) {
-    console.error("Verify OTP Error:", err);
-    res.status(500).json({ message: "OTP verification failed" });
-  }
-};
+  };
 
 // -----------------------------
 // FORGOT PASSWORD
