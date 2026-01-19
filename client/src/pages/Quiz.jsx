@@ -572,7 +572,7 @@ function Quiz() {
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [registered, submitted, invalidated, paused, countdown, activeQuiz?._id]);
+  }, [registered, submitted, invalidated, paused, countdown, activeQuiz]);
 
   useEffect(() => {
     if (
@@ -599,7 +599,7 @@ function Quiz() {
     registered,
     submitted,
     invalidated,
-    activeQuiz?._id,
+    activeQuiz,
     index,
     countdown,
     paused,
