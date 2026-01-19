@@ -68,8 +68,6 @@ export default function SystemSettings() {
     [bucket]
   );
 
-    url?.split(`/object/public/${bucket}/`)[1] || null;
-
   // Load system settings once
   useEffect(() => {
     async function loadSettings() {
