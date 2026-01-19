@@ -1,6 +1,6 @@
 // client/src/components/DemotionModal.jsx
 import { useState } from "react";
-import { ShieldAlert, Check, X, Loader2 } from "lucide-react";
+import { ShieldAlert, Loader2 } from "lucide-react";
 import api from "../utils/api";
 
 export default function DemotionModal({ request, onClose, onUpdated }) {

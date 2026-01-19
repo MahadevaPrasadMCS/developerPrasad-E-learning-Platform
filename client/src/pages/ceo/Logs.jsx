@@ -2,10 +2,8 @@
 import React, { useEffect, useState } from "react";
 import {
   Filter,
-  Search,
   Download,
   RefreshCcw,
-  ArrowUpDown,
   ChevronDown,
   ChevronUp,
   X,
@@ -22,11 +20,6 @@ const ACTION_OPTIONS = [
   { value: "QUIZ_ACTION", label: "Quiz action" },
   { value: "RESOURCE_UPLOAD", label: "Resource upload" },
   { value: "SECURITY_ALERT", label: "Security alert" },
-];
-
-const SORT_OPTIONS = [
-  { value: "desc", label: "Newest first" },
-  { value: "asc", label: "Oldest first" },
 ];
 
 const actionStyles = {

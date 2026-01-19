@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../utils/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { currencyFormatter } from "../../utils/formatters"; // optional if you want helpers
 
 export default function WalletCEO() {
   const [users, setUsers] = useState([]);

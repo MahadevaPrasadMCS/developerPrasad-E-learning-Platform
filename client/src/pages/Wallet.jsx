@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
@@ -18,7 +18,7 @@ function Wallet() {
 
   const limit = 8;
 
-  const fetchWallet = async () => {
+  const fetchWallet = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get(`/wallet?page=${page}&limit=${limit}`, {
@@ -31,11 +31,11 @@ function Wallet() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, page]);
 
   useEffect(() => {
     if (token) fetchWallet();
-  }, [token, page]);
+  }, [token, fetchWallet]);
 
   const exportCSV = () => {
     if (!wallet.length) return;

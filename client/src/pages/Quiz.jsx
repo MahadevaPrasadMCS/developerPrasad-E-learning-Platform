@@ -65,6 +65,7 @@ function Quiz() {
   const activeQuizRef = useRef(activeQuiz);
   const pendingQuizRef = useRef(pendingQuiz);
   const readyToStartRef = useRef(readyToStart);
+  const fullscreenLostRef = useRef(fullscreenLost);
 
   useEffect(() => {
     registeredRef.current = registered;
@@ -87,6 +88,9 @@ function Quiz() {
   useEffect(() => {
     readyToStartRef.current = readyToStart;
   }, [readyToStart]);
+  useEffect(() => {
+  fullscreenLostRef.current = fullscreenLost;
+  }, []);
 
   /* ===========================
      Device Detection
@@ -503,7 +507,7 @@ function Quiz() {
       // Resuming after fullscreen lost (desktop)
       if (
         registeredRef.current &&
-        fullscreenLost &&
+        fullscreenLostRef.current &&
         !submittedRef.current &&
         !invalidatedRef.current
       ) {
@@ -575,7 +579,7 @@ function Quiz() {
       !registered ||
       submitted ||
       invalidated ||
-      !activeQuiz ||
+      !activeQuiz.current ||
       countdown !== null ||
       paused
     )

@@ -1,5 +1,5 @@
 // pages/ceo/SystemSettings.jsx
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   Loader2,
   AlertTriangle,
@@ -63,7 +63,11 @@ export default function SystemSettings() {
 
   const bucket = process.env.REACT_APP_SUPABASE_BUCKET || "avatars";
 
-  const extractPath = (url) =>
+  const extractPath = useCallback(
+    (url) => url?.split(`/object/public/${bucket}/`)[1] || null,
+    [bucket]
+  );
+
     url?.split(`/object/public/${bucket}/`)[1] || null;
 
   // Load system settings once
@@ -106,7 +110,7 @@ export default function SystemSettings() {
     }
 
     loadSettings();
-  }, []);
+  }, [extractPath]);
 
   // Generic Supabase upload helper
   const uploadToSupabase = async (file, pathPrefix, oldPathSetter) => {

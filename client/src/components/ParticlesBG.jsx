@@ -1,17 +1,12 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import Particles from "@tsparticles/react";
 import { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
-import { useEffect, useState } from "react";
 
 function ParticlesBG() {
-  const [init, setInit] = useState(false);
-
   useEffect(() => {
     initParticlesEngine(async (engine) => {
       await loadSlim(engine);
-    }).then(() => {
-      setInit(true);
     });
   }, []);
 
@@ -32,7 +27,12 @@ function ParticlesBG() {
           opacity: { value: 0.4 },
           size: { value: { min: 1, max: 5 } },
           move: { enable: true, speed: 0.6 },
-          links: { enable: true, color: "#10b981", distance: 120, opacity: 0.3 },
+          links: {
+            enable: true,
+            color: "#10b981",
+            distance: 120,
+            opacity: 0.3,
+          },
         },
         detectRetina: true,
       }}

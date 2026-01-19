@@ -1,5 +1,5 @@
 // src/context/AuthContext.js
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import FullScreenLoader from "../components/FullScreenLoader";
 import { ROLES } from "../config/roles";
@@ -13,16 +13,19 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const redirectByRole = (role) => {
-    const routes = {
-      [ROLES.CEO]: "/ceo",
-      [ROLES.ADMIN]: "/admin",
-      [ROLES.INSTRUCTOR]: "/instructor",
-      [ROLES.MODERATOR]: "/moderator",
-      [ROLES.STUDENT]: "/dashboard",
-    };
-    navigate(routes[role] || "/", { replace: true });
-  };
+  const redirectByRole = useCallback(
+    (role) => {
+      const routes = {
+        [ROLES.CEO]: "/ceo",
+        [ROLES.ADMIN]: "/admin",
+        [ROLES.INSTRUCTOR]: "/instructor",
+        [ROLES.MODERATOR]: "/moderator",
+        [ROLES.STUDENT]: "/dashboard",
+      };
+      navigate(routes[role] || "/", { replace: true });
+    },
+    [navigate]
+  );
 
   // Load from storage on mount
   useEffect(() => {
@@ -38,7 +41,7 @@ export const AuthProvider = ({ children }) => {
       }
     }
     setLoading(false);
-  }, []);
+  }, [redirectByRole]);
 
   // Sync across tabs
   useEffect(() => {

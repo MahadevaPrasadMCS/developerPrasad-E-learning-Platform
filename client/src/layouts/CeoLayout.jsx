@@ -200,6 +200,9 @@ function CeoLayout() {
             >
               Navigation
             </span>
+            <span className="text-xs text-slate-600 dark:text-slate-300">
+              {user?.name}
+            </span>
             <button
               type="button"
               onClick={toggleSidebarDesktop}
