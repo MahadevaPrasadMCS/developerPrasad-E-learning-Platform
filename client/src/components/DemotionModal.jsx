@@ -28,8 +28,6 @@ export default function DemotionModal({ request, onClose, onUpdated }) {
     }
   };
 
-  const disableActions = ["USER_ACCEPTED", "USER_DISPUTED"].includes(status);
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
       <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 animate-fadeIn">

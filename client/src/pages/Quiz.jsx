@@ -90,7 +90,7 @@ function Quiz() {
   }, [readyToStart]);
   useEffect(() => {
   fullscreenLostRef.current = fullscreenLost;
-  }, []);
+  }, [fullscreenLost]);
 
   /* ===========================
      Device Detection
@@ -579,7 +579,7 @@ function Quiz() {
       !registered ||
       submitted ||
       invalidated ||
-      !activeQuiz.current ||
+      !activeQuiz ||
       countdown !== null ||
       paused
     )
