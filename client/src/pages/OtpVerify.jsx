@@ -35,7 +35,11 @@ export default function OtpVerify() {
     try {
       setLoading(true);
 
-      const res = await api.post("/auth/verify-otp", { otp, email });
+      const res = await api.post("/auth/verify-otp", {
+        otp,
+        email,
+        purpose: mode === "reset" ? "RESET_PASSWORD" : "REGISTER",
+      });
 
       toast.success("OTP verified!");
 
