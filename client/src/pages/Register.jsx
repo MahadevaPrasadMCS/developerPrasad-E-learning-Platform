@@ -31,10 +31,21 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
 
   /* Email validation */
+  const commonDomains = ["gmail.com", "yahoo.com", "outlook.com"];
+
   const handleEmail = (value) => {
     setForm({ ...form, email: value });
-    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-    setEmailValid(ok || value === "");
+
+    const basicOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    if (!basicOk) return setEmailValid(false);
+
+    const domain = value.split("@")[1]?.toLowerCase();
+    if (domain && domain.includes("gmsil")) {
+      toast.error("Did you mean gmail.com?");
+      return setEmailValid(false);
+    }
+
+    setEmailValid(true);
   };
 
   /* Password strength */
@@ -108,10 +119,10 @@ export default function Register() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center 
+      className="min-h-screen flex items-start sm:items-center justify-center 
       bg-gradient-to-br from-white via-gray-100 to-gray-200
       dark:from-slate-900 dark:via-slate-800 dark:to-black
-      transition-colors duration-300 relative px-6 py-12 overflow-hidden"
+      transition-colors duration-300 relative px-6 pt-24 sm:pt-12 pb-12 overflow-hidden"
     >
       {/* Top Bar */}
       <div className="absolute top-4 sm:top-5 left-4 sm:left-5 right-4 sm:right-5 flex justify-between z-20">
