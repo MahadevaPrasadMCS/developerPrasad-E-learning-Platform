@@ -36,15 +36,23 @@ export default function Register() {
   const handleEmail = (value) => {
     setForm({ ...form, email: value });
 
+    // basic email format validation
     const basicOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-    if (!basicOk) return setEmailValid(false);
-
-    const domain = value.split("@")[1]?.toLowerCase();
-    if (domain && domain.includes("gmsil")) {
-      toast.error("Did you mean gmail.com?");
-      return setEmailValid(false);
+    if (!basicOk) {
+      setEmailValid(false);
+      return;
     }
 
+    const domain = value.split("@")[1]?.toLowerCase();
+
+    // ❌ domain not allowed
+    if (!commonDomains.includes(domain)) {
+      toast.error("Please use Gmail, Yahoo, or Outlook email");
+      setEmailValid(false);
+      return;
+    }
+
+    // ✅ valid email
     setEmailValid(true);
   };
 
