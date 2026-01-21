@@ -255,7 +255,7 @@ export const loginUser = async (req, res) => {
 // body: { otp, email, purpose }
 // -----------------------------
   export const verifyOTP = async (req, res) => {
-    console.log("VERIFY OTP:", { email, otp, purpose });
+    console.log("VERIFY OTP:", req.body);
     try {
       const { otp, email, purpose = "REGISTER" } = req.body;
 
