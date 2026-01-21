@@ -114,7 +114,7 @@ export default function Register() {
       transition-colors duration-300 relative px-6 py-12 overflow-hidden"
     >
       {/* Top Bar */}
-      <div className="absolute top-5 left-5 right-5 flex justify-between z-20">
+      <div className="absolute top-4 sm:top-5 left-4 sm:left-5 right-4 sm:right-5 flex justify-between z-20">
         <button
           onClick={() => navigate("/")}
           className="flex items-center gap-2 px-3 py-2 rounded-lg
@@ -146,9 +146,10 @@ export default function Register() {
 
       {/* Card */}
       <motion.div
-        initial={{ opacity: 0, y: 40 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md p-8 
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-md p-6 sm:p-8 
         bg-white/70 dark:bg-white/10 
         backdrop-blur-2xl border 
         border-gray-300/40 dark:border-white/20 
@@ -178,7 +179,7 @@ export default function Register() {
           />
 
           {/* Email + OTP */}
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="email"
               placeholder="Email Address"
@@ -198,7 +199,7 @@ export default function Register() {
               type="button"
               onClick={sendOtp}
               disabled={!emailValid || !form.email || otpSent || emailVerified}
-              className="px-4 rounded-lg bg-emerald-600 text-white
+              className="px-4 sm:px-4 py-3 sm:py-0 rounded-lg bg-emerald-600 text-white
               hover:bg-emerald-700 disabled:opacity-50 transition"
             >
               {emailVerified ? "Verified" : otpSent ? "Sent" : "Verify"}
@@ -206,7 +207,7 @@ export default function Register() {
           </div>
 
           {otpSent && !emailVerified && (
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 placeholder="OTP"
                 value={otp}
@@ -218,7 +219,7 @@ export default function Register() {
               <button
                 type="button"
                 onClick={verifyOtp}
-                className="px-4 bg-emerald-600 hover:bg-emerald-700
+                className="w-full sm:w-auto px-4 py-3 sm:py-0 bg-emerald-600 hover:bg-emerald-700
                 text-white rounded-lg transition"
               >
                 Verify
@@ -255,7 +256,7 @@ export default function Register() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-1 text-xs text-gray-600 dark:text-slate-300">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-gray-600 dark:text-slate-300">
                 {Object.entries(passwordStatus.conditions).map(([k, ok]) => (
                   <div key={k} className="flex items-center gap-1">
                     {ok ? (
