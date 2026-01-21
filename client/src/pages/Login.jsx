@@ -82,7 +82,7 @@ export default function Login() {
           onClick={() => navigate("/")}
           className="
             flex items-center gap-2 px-3 py-2 rounded-lg
-            bg-white/60 dark:bg-white/10
+            bg-white/60 dark:bg-emerald-700/40
             border border-gray-300/40 dark:border-white/10
             backdrop-blur-md shadow-sm
             text-gray-800 dark:text-gray-200
@@ -99,7 +99,7 @@ export default function Login() {
           onClick={toggleTheme}
           className="
             w-10 h-10 rounded-full flex items-center justify-center
-            bg-gray-200/80 dark:bg-gray-800/70
+            bg-gray-200/80 dark:bg-emerald-700/50
             border border-gray-300 dark:border-gray-700
             hover:ring-2 hover:ring-emerald-400 dark:hover:ring-teal-400
             transition shadow
