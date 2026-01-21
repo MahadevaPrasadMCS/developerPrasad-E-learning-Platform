@@ -63,7 +63,7 @@ export default function OtpVerify() {
       setResending(true);
       await api.post("/auth/send-otp", {
         email,
-        purpose: mode === "reset" ? "RESET_PASSWORD" : "VERIFY_ACCOUNT",
+        purpose: mode === "reset" ? "RESET_PASSWORD" : "REGISTER",
       });
       toast.success("New OTP sent");
     } catch (err) {
