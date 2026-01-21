@@ -137,10 +137,11 @@ export default function Register() {
         <button
           onClick={() => navigate("/")}
           className="flex items-center gap-2 px-3 py-2 rounded-lg
-          bg-white/60 dark:bg-white/10
-          border border-gray-300/40 dark:border-white/10
+          bg-grey-900/80 text-white
+          dark:bg-white/80 dark:text-gray-900
+          border border-gray-700/40 dark:border-gray-300/40
           backdrop-blur-md shadow-sm
-          hover:bg-white/80 dark:hover:bg-white/20 transition"
+          hover:bg-gray-900 dark:hover:bg-white transition"
         >
           <ArrowLeft size={18} />
           <span className="text-sm font-medium">Back to Home</span>
@@ -149,10 +150,12 @@ export default function Register() {
         <button
           onClick={toggleTheme}
           className="w-10 h-10 rounded-full flex items-center justify-center
-          bg-gray-200/80 dark:bg-gray-800/70
-          border border-gray-300 dark:border-gray-700
-          hover:ring-2 hover:ring-emerald-400 transition shadow"
-        >
+            bg-gray-900/80 text-white
+            dark:bg-gray-200/80 dark:text-gray-900
+            border border-gray-700 dark:border-gray-300
+            hover:ring-2 hover:ring-emerald-400
+            transition shadow"
+          >
           {darkMode ? <Sun size={18} /> : <Moon size={18} />}
         </button>
       </div>
@@ -174,14 +177,14 @@ export default function Register() {
         border-gray-300/40 dark:border-white/20 
         rounded-3xl shadow-2xl"
       >
-        <h1 className="text-4xl font-extrabold text-center 
+        <h1 className="text-4xl sm:text-3xl font-extrabold text-center 
           bg-gradient-to-r from-emerald-600 to-teal-500 
           dark:from-emerald-400 dark:to-teal-300 
           bg-clip-text text-transparent">
           Create Account
         </h1>
 
-        <p className="text-center text-gray-600 dark:text-gray-300 text-sm mt-1">
+        <p className="text-center text-gray-600 dark:text-gray-300 text-xs mt-1">
           Start your journey — let’s build together ✨
         </p>
 
@@ -313,7 +316,7 @@ export default function Register() {
           </motion.button>
         </form>
 
-        <p className="text-center text-sm mt-6 text-gray-600 dark:text-gray-300">
+        <p className="text-center text-base mt-6 text-gray-600 dark:text-gray-300">
           Already have an account?{" "}
           <Link to="/login" className="text-emerald-600 hover:underline">
             Sign In
