@@ -137,7 +137,7 @@ export default function Register() {
         <button
           onClick={() => navigate("/")}
           className="flex items-center gap-2 px-3 py-2 rounded-lg
-          bg-grey-900/80 text-white
+          bg-emerald-900/80 text-white
           dark:bg-white/80 dark:text-gray-900
           border border-gray-700/40 dark:border-gray-300/40
           backdrop-blur-md shadow-sm
@@ -150,7 +150,7 @@ export default function Register() {
         <button
           onClick={toggleTheme}
           className="w-10 h-10 rounded-full flex items-center justify-center
-            bg-gray-900/80 text-white
+            bg-emerald-900/80 text-white
             dark:bg-gray-200/80 dark:text-gray-900
             border border-gray-700 dark:border-gray-300
             hover:ring-2 hover:ring-emerald-400
