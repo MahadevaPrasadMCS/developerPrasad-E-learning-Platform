@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Sun,
   Moon,
+  UserPlus,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { toast } from "react-hot-toast";
@@ -96,7 +97,7 @@ export default function Register() {
         email: form.email,
         password: form.password,
       });
-      toast.success("Account created successfully");
+      toast.success("Account created successfully 🎉");
       navigate("/login");
     } catch {
       toast.error("Registration failed");
@@ -106,53 +107,77 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center
+    <div
+      className="min-h-screen flex items-center justify-center 
       bg-gradient-to-br from-white via-gray-100 to-gray-200
       dark:from-slate-900 dark:via-slate-800 dark:to-black
-      relative px-6 py-12 transition-colors">
-
+      transition-colors duration-300 relative px-6 py-12 overflow-hidden"
+    >
       {/* Top Bar */}
-      <div className="absolute top-5 left-5 right-5 flex justify-between">
+      <div className="absolute top-5 left-5 right-5 flex justify-between z-20">
         <button
           onClick={() => navigate("/")}
           className="flex items-center gap-2 px-3 py-2 rounded-lg
-          bg-white/60 dark:bg-white/10 border backdrop-blur shadow">
-          <ArrowLeft size={18} /> Back
+          bg-white/60 dark:bg-white/10
+          border border-gray-300/40 dark:border-white/10
+          backdrop-blur-md shadow-sm
+          hover:bg-white/80 dark:hover:bg-white/20 transition"
+        >
+          <ArrowLeft size={18} />
+          <span className="text-sm font-medium">Back to Home</span>
         </button>
 
         <button
           onClick={toggleTheme}
           className="w-10 h-10 rounded-full flex items-center justify-center
-          bg-gray-200 dark:bg-gray-800 border shadow">
+          bg-gray-200/80 dark:bg-gray-800/70
+          border border-gray-300 dark:border-gray-700
+          hover:ring-2 hover:ring-emerald-400 transition shadow"
+        >
           {darkMode ? <Sun size={18} /> : <Moon size={18} />}
         </button>
       </div>
+
+      {/* Ambient glows */}
+      <div className="absolute top-10 left-10 w-80 h-80 
+        bg-emerald-500/20 dark:bg-emerald-600/25 blur-3xl rounded-full" />
+      <div className="absolute bottom-10 right-10 w-96 h-96 
+        bg-teal-400/20 dark:bg-teal-500/25 blur-3xl rounded-full" />
 
       {/* Card */}
       <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md p-8 bg-white/70 dark:bg-white/10
-        backdrop-blur-2xl border rounded-3xl shadow-2xl">
-
-        <h1 className="text-3xl font-extrabold text-center
-          bg-gradient-to-r from-emerald-600 to-teal-500
+        className="w-full max-w-md p-8 
+        bg-white/70 dark:bg-white/10 
+        backdrop-blur-2xl border 
+        border-gray-300/40 dark:border-white/20 
+        rounded-3xl shadow-2xl"
+      >
+        <h1 className="text-4xl font-extrabold text-center 
+          bg-gradient-to-r from-emerald-600 to-teal-500 
+          dark:from-emerald-400 dark:to-teal-300 
           bg-clip-text text-transparent">
           Create Account
         </h1>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+        <p className="text-center text-gray-600 dark:text-gray-300 text-sm mt-1">
+          Start your journey — let’s build together ✨
+        </p>
 
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           {/* Name */}
           <input
             required
             placeholder="Full Name"
-            className="w-full p-3 rounded-lg border bg-white/60 dark:bg-white/5"
+            className="w-full p-3 rounded-lg bg-white/60 dark:bg-white/5
+            border border-gray-400 dark:border-slate-600
+            outline-none focus:ring-2 focus:ring-emerald-500 transition"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
 
-          {/* Email + Verify */}
+          {/* Email + OTP */}
           <div className="flex gap-2">
             <input
               type="email"
@@ -160,7 +185,12 @@ export default function Register() {
               value={form.email}
               onChange={(e) => handleEmail(e.target.value)}
               className={`flex-1 p-3 rounded-lg bg-white/60 dark:bg-white/5
-              border ${emailValid ? "border-gray-400" : "border-red-500"}`}
+              border ${
+                emailValid
+                  ? "border-gray-400 dark:border-slate-600"
+                  : "border-red-500"
+              }
+              outline-none focus:ring-2 focus:ring-emerald-500 transition`}
               required
             />
 
@@ -169,24 +199,28 @@ export default function Register() {
               onClick={sendOtp}
               disabled={!emailValid || !form.email || otpSent || emailVerified}
               className="px-4 rounded-lg bg-emerald-600 text-white
-              disabled:opacity-50 transition">
+              hover:bg-emerald-700 disabled:opacity-50 transition"
+            >
               {emailVerified ? "Verified" : otpSent ? "Sent" : "Verify"}
             </button>
           </div>
 
-          {/* OTP */}
           {otpSent && !emailVerified && (
             <div className="flex gap-2">
               <input
                 placeholder="OTP"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
-                className="flex-1 p-3 rounded-lg border"
+                className="flex-1 p-3 rounded-lg bg-white/60 dark:bg-white/5
+                border border-gray-400 dark:border-slate-600
+                outline-none focus:ring-2 focus:ring-emerald-500 transition"
               />
               <button
                 type="button"
                 onClick={verifyOtp}
-                className="px-4 bg-emerald-600 text-white rounded-lg">
+                className="px-4 bg-emerald-600 hover:bg-emerald-700
+                text-white rounded-lg transition"
+              >
                 Verify
               </button>
             </div>
@@ -200,16 +234,18 @@ export default function Register() {
             onChange={(e) =>
               setForm({ ...form, password: e.target.value })
             }
-            className="w-full p-3 rounded-lg border"
+            className="w-full p-3 rounded-lg bg-white/60 dark:bg-white/5
+            border border-gray-400 dark:border-slate-600
+            outline-none focus:ring-2 focus:ring-emerald-500 transition"
           />
 
           {/* Strength */}
           {form.password.length > 0 && (
             <>
-              <div className="h-2 bg-gray-300 rounded-full overflow-hidden">
+              <div className="h-2 bg-gray-300 dark:bg-slate-700 rounded-full overflow-hidden">
                 <motion.div
                   animate={{ width: `${(passwordStatus.passed / 5) * 100}%` }}
-                  className={`h-full ${
+                  className={`h-full rounded-full ${
                     passwordStatus.passed <= 2
                       ? "bg-red-500"
                       : passwordStatus.passed === 3
@@ -219,7 +255,7 @@ export default function Register() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-1 text-xs">
+              <div className="grid grid-cols-2 gap-1 text-xs text-gray-600 dark:text-slate-300">
                 {Object.entries(passwordStatus.conditions).map(([k, ok]) => (
                   <div key={k} className="flex items-center gap-1">
                     {ok ? (
@@ -241,18 +277,23 @@ export default function Register() {
             onChange={(e) =>
               setForm({ ...form, confirmPassword: e.target.value })
             }
-            className="w-full p-3 rounded-lg border"
+            className="w-full p-3 rounded-lg bg-white/60 dark:bg-white/5
+            border border-gray-400 dark:border-slate-600
+            outline-none focus:ring-2 focus:ring-emerald-500 transition"
           />
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.97 }}
             disabled={loading || !emailVerified}
-            className="w-full py-3 bg-emerald-600 text-white rounded-lg
-            disabled:opacity-60">
-            {loading ? "Creating..." : "Create Account"}
-          </button>
+            className="w-full py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700
+            text-white font-semibold shadow-lg transition disabled:opacity-60
+            flex items-center justify-center gap-2"
+          >
+            {loading ? "Creating..." : <><UserPlus size={18} /> Create Account</>}
+          </motion.button>
         </form>
 
-        <p className="text-center text-xs mt-6">
+        <p className="text-center text-sm mt-6 text-gray-600 dark:text-gray-300">
           Already have an account?{" "}
           <Link to="/login" className="text-emerald-600 hover:underline">
             Sign In
