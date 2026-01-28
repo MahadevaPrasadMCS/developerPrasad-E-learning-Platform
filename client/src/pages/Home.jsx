@@ -353,22 +353,12 @@ export default function Home() {
               {!user && (
                 <SecondaryButton
                   to="/login"
-                  className="bg-white/80 dark:bg-white/6 text-gray-900 dark:text-gray-200 border-gray-300 dark:border-gray-700/40"
+                  className="bg-white/80 dark:bg-grey/6 text-gray-900 dark:text-white-400 border-gray-300 dark:border-gray-700/40"
                   ariaLabel="Already have an account"
                 >
                   Already have an account?
                 </SecondaryButton>
               )}
-
-              {/* Theme Toggle - prefer to keep small and accessible */}
-              <button
-                onClick={toggleTheme}
-                aria-label="Toggle theme"
-                title="Toggle theme"
-                className="ml-0 sm:ml-2 inline-flex items-center justify-center rounded-full p-2 border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-transparent"
-              >
-                <span className="text-sm">{theme === "dark" ? "☾" : "☼"}</span>
-              </button>
             </div>
 
             {/* Mobile radar toggle */}
