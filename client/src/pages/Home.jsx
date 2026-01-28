@@ -46,20 +46,6 @@ function usePremiumTheme() {
     }
   });
 
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "dark") root.classList.add("dark");
-    else root.classList.remove("dark");
-
-    try {
-      localStorage.setItem("theme", theme);
-    } catch {}
-  }, [theme]);
-
-  const toggle = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
-  return [theme, toggle];
-}
-
 /* ----------------------
    Reusable Buttons
    - primary adapts gradient per theme
@@ -197,7 +183,6 @@ function RadarCard({ compact = false }) {
    ---------------------- */
 export default function Home() {
   const { user } = useAuth();
-  const [theme, toggleTheme] = usePremiumTheme();
 
   const [platformName, setPlatformName] = useState("YouLearnHub");
   const [heroTitle, setHeroTitle] = useState("");
