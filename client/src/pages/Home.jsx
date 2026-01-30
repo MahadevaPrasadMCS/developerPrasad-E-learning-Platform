@@ -148,18 +148,22 @@ function RadarCard({ compact = false }) {
           </svg>
         </div>
 
-        {/* Labels via grid (resilient) */}
-        <div className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3">
-          <div className="flex items-start justify-center pt-2 text-[11px] text-gray-700 dark:text-teal-200">DSA</div>
-          <div />
-          <div className="flex items-start justify-center pt-2 text-[11px] text-gray-700 dark:text-teal-200">Projects</div>
-
-          <div className="flex items-center justify-start pl-2 text-[11px] text-gray-700 dark:text-teal-200">Aptitude</div>
-          <div />
-          <div className="flex items-center justify-end pr-2 text-[11px] text-gray-700 dark:text-teal-200">Web</div>
-
-          <div className="flex items-end justify-center pb-2 text-[11px] text-gray-700 dark:text-teal-200 col-start-2">CS</div>
-        </div>
+       {/* Radar Labels */}
+      <div className="pointer-events-none absolute inset-0 text-[11px] text-gray-700 dark:text-teal-200">
+        {/* Top */}
+        <div className="absolute top-1 left-1/2 -translate-x-1/2">DSA</div>
+      
+        {/* Top Right */}
+        <div className="absolute top-6 right-2">Projects</div>
+      
+        {/* Right */}
+        <div className="absolute top-1/2 right-0 -translate-y-1/2">Web</div>
+      
+        {/* Bottom */}
+        <div className="absolute bottom-1 left-1/2 -translate-x-1/2">CS</div>
+      
+        {/* Left */}
+        <div className="absolute top-1/2 left-0 -translate-y-1/2">Aptitude</div>
       </div>
 
       {/* Stats */}
