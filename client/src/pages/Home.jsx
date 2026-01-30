@@ -39,12 +39,22 @@ function usePremiumTheme() {
     try {
       const stored = localStorage.getItem("theme");
       if (stored) return stored;
-      if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
+      if (window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
       return "light";
     } catch {
       return "light";
     }
   });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("dark", theme === "dark");
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  return { theme, setTheme };
+}
+
 
 /* ----------------------
    Reusable Buttons
@@ -190,15 +200,6 @@ export default function Home() {
   const [heroSubtitle, setHeroSubtitle] = useState("");
   const [heroImageUrl, setHeroImageUrl] = useState("");
   const [showMobileRadar, setShowMobileRadar] = useState(false);
-   
-   useEffect(() => {
-  const root = document.documentElement;
-  root.classList.toggle("dark", theme === "dark");
-  localStorage.setItem("theme", theme);
-}, [theme]);
-
-return { theme, setTheme };
-
 
   useEffect(() => {
     async function loadSettings() {
