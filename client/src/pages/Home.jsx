@@ -165,6 +165,7 @@ function RadarCard({ compact = false }) {
         {/* Left */}
         <div className="absolute top-1/2 left-0 -translate-y-1/2">Aptitude</div>
       </div>
+      </div> 
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 text-[11px] text-gray-800 dark:text-gray-200 mb-4">
