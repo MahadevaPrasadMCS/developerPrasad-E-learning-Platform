@@ -323,7 +323,7 @@ export default function Home() {
                   <Typewriter
                     options={{
                       autoStart: true,
-                      loop: false,
+                      loop: true,
                       delay: 45,
                       deleteSpeed: 30,
                       strings: [
