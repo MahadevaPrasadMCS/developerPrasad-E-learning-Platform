@@ -151,19 +151,19 @@ function RadarCard({ compact = false }) {
        {/* Radar Labels */}
       <div className="pointer-events-none absolute inset-0 text-[11px] text-gray-700 dark:text-teal-200">
         {/* Top */}
-        <div className="absolute top-1 left-1/2 -translate-x-1/2">DSA</div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2">DSA</div>
       
         {/* Top Right */}
-        <div className="absolute top-6 right-2">Projects</div>
+        <div className="absolute top-6 right-3">Projects</div>
       
         {/* Right */}
-        <div className="absolute top-1/2 right-0 -translate-y-1/2">Web</div>
+        <div className="absolute top-1/2 right-4 -translate-y-1/2">Web</div>
       
         {/* Bottom */}
-        <div className="absolute bottom-1 left-1/2 -translate-x-1/2">CS</div>
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2">CS</div>
       
         {/* Left */}
-        <div className="absolute top-1/2 left-0 -translate-y-1/2">Aptitude</div>
+        <div className="absolute top-1/2 left-3 -translate-y-1/2">Aptitude</div>
       </div>
       </div> 
 
